@@ -1169,15 +1169,82 @@ body {
 
 
 @media (max-width: 768px) {
+    /* Modal Optimizations - FIX SCROLL & OVERFLOW */
+    .hologram-modal__content {
+        max-height: 90vh;
+        overflow-y: auto;
+        padding: var(--space-md);
+        width: 95%;
+    }
+    .hologram-modal__info {
+        max-height: none;
+        overflow: visible;
+        padding-right: 0;
+    }
     .hologram-modal__body {
         flex-direction: column;
         align-items: center;
     }
     .hologram-modal__poster {
-        width: 180px;
+        width: 150px;
     }
     .hologram-modal__title {
         font-size: 1.5rem;
         text-align: center;
+    }
+    
+    /* Home Grid Optimizations - Fit 2 items instead of 1 */
+    .movie-grid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: var(--space-md);
+    }
+    
+    /* Controls Optimizations */
+    .home-controls {
+        flex-wrap: wrap;
+        justify-content: center;
+        padding: 0 var(--space-md);
+    }
+}
+
+/* Extra small devices (phones) */
+@media (max-width: 480px) {
+    /* Cold Start Stack - Dynamic Fit */
+    .card-stack {
+        width: 85vw;
+        max-width: 320px;
+        height: 60vh;
+        min-height: 380px;
+        max-height: 480px;
+    }
+    
+    /* Action Buttons Scale Down */
+    .cold-start__actions {
+        gap: var(--space-lg);
+        margin-bottom: var(--space-sm);
+    }
+    
+    .action-btn {
+        width: 50px;
+        height: 50px;
+        font-size: 1.3rem;
+    }
+    
+    /* Typography Adjustments */
+    .cold-start__title {
+        font-size: 1.25rem;
+    }
+    
+    .cold-start__subtitle {
+        font-size: 0.8rem;
+    }
+    
+    /* Cinematic Loader Mobile Scale */
+    .cinematic-loader {
+        transform: scale(0.7);
+    }
+    
+    .loader-title {
+        font-size: 1.1rem;
     }
 }

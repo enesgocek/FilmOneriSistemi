@@ -369,32 +369,63 @@
                 });
 
                 const cardsArray = Array.from(allCards); 
+                const isMobile = window.innerWidth <= 768;
                 
-                // 1) 10 Gerçek Kartı daha yavaş ve geniş bir yelpazeyle aç (Fan-out)
-                tl.fromTo(cardsArray, 
-                    { x: 0, y: 300, opacity: 0, rotation: 0, scale: 0.4 },
-                    {
-                        x: (index) => (index - 4.5) * 80, // Daha geniş yayılma alanı
-                        y: (index) => Math.abs(index - 4.5) * 20 - 20, 
-                        rotation: (index) => (index - 4.5) * 10,
-                        opacity: 1,
-                        scale: 0.7, // Yüzleri görüneceği için ekrana sığsınlar
-                        duration: 1.0, // Daha sakin ve yavaş açılma (1 saniye)
-                        stagger: 0.08, // Daha sakin yayılma ritmi
-                        ease: 'back.out(1.0)'
-                    }
-                );
+                if (isMobile) {
+                    // MOBİL TASARIM: Yukarıdan Aşağıya Şelale Efekti (Drop-in & Pile up)
+                    tl.fromTo(cardsArray, 
+                        { x: 0, y: -400, opacity: 0, rotation: () => (Math.random() - 0.5) * 40, scale: 0.8 },
+                        {
+                            x: () => (Math.random() - 0.5) * 20, // Hafif rastgele yatay dağınıklık
+                            y: () => (Math.random() - 0.5) * 20, // Hafif rastgele dikey dağınıklık
+                            rotation: () => (Math.random() - 0.5) * 15,
+                            opacity: 1,
+                            scale: 0.9,
+                            duration: 0.7,
+                            stagger: 0.06,
+                            ease: 'power2.out'
+                        }
+                    );
 
-                // 2) Ortada daha yavaş topla (Collapse)
-                tl.to(cardsArray, {
-                    x: 0,
-                    y: 0,
-                    rotation: 0, // Kullanıcı talebi: Kartlar jilet gibi düz (flat) üst üste otursun
-                    scale: 1,
-                    duration: 0.8, // 0.8 saniyede ağır ağır toplansın
-                    stagger: 0.05, 
-                    ease: 'power2.inOut'
-                }, "+=0.8"); // Yelpaze halinde çok daha uzun (0.8s) beklesin ki izlenebilsin
+                    // Dağınık düşen kartları ortada topla
+                    tl.to(cardsArray, {
+                        x: 0,
+                        y: 0,
+                        rotation: 0,
+                        scale: 1,
+                        duration: 0.6,
+                        stagger: 0.03,
+                        ease: 'power2.inOut'
+                    }, "+=0.5");
+
+                } else {
+                    // MASAÜSTÜ TASARIM: Sağa Sola Yelpaze (Fan-out)
+                    // 1) 10 Gerçek Kartı daha yavaş ve geniş bir yelpazeyle aç (Fan-out)
+                    tl.fromTo(cardsArray, 
+                        { x: 0, y: 300, opacity: 0, rotation: 0, scale: 0.4 },
+                        {
+                            x: (index) => (index - 4.5) * 80, // Daha geniş yayılma alanı
+                            y: (index) => Math.abs(index - 4.5) * 20 - 20, 
+                            rotation: (index) => (index - 4.5) * 10,
+                            opacity: 1,
+                            scale: 0.7, // Yüzleri görüneceği için ekrana sığsınlar
+                            duration: 1.0, // Daha sakin ve yavaş açılma (1 saniye)
+                            stagger: 0.08, // Daha sakin yayılma ritmi
+                            ease: 'back.out(1.0)'
+                        }
+                    );
+
+                    // 2) Ortada daha yavaş topla (Collapse)
+                    tl.to(cardsArray, {
+                        x: 0,
+                        y: 0,
+                        rotation: 0, // Kullanıcı talebi: Kartlar jilet gibi düz (flat) üst üste otursun
+                        scale: 1,
+                        duration: 0.8, // 0.8 saniyede ağır ağır toplansın
+                        stagger: 0.05, 
+                        ease: 'power2.inOut'
+                    }, "+=0.8"); // Yelpaze halinde çok daha uzun (0.8s) beklesin ki izlenebilsin
+                }
             } else {
                 allCards.forEach(card => {
                     if (card.classList.contains('swipe-card--hidden-deck')) {
