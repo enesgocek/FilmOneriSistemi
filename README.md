@@ -2,6 +2,17 @@
 
 FilmciBaba, modern bir 3 Boyutlu (3D) web arayüzüne ve yapay zeka tabanlı (Vektör Benzerliği) bir film öneri motoruna sahip, elit ve yepyeni bir film keşif platformudur. 
 
+<img width="1536" height="693" alt="Screenshot 2026-07-31 182555" src="https://github.com/user-attachments/assets/a0c936a6-2b57-4e6e-90f2-d40042975669" />
+<img width="1532" height="688" alt="Screenshot 2026-07-31 182940" src="https://github.com/user-attachments/assets/bab7cc7a-7bf9-4939-a91a-6e9a8fb59ea9" />
+<img width="1532" height="690" alt="Screenshot 2026-07-31 182845" src="https://github.com/user-attachments/assets/76bc36b5-3721-4179-9440-c9278547daf4" />
+<img width="1536" height="692" alt="Screenshot 2026-07-31 183007" src="https://github.com/user-attachments/assets/07787e5a-2540-4621-aece-3243a0639e07" />
+<img width="1535" height="687" alt="Screenshot 2026-07-31 183046" src="https://github.com/user-attachments/assets/f3c7ae63-cdba-49c0-a743-40eed1d9003a" />
+<img width="1536" height="697" alt="Screenshot 2026-07-31 183139" src="https://github.com/user-attachments/assets/7a288e9d-864a-43a1-a8bc-dfda7eb4b10c" />
+<img width="1536" height="691" alt="Screenshot 2026-07-31 183249" src="https://github.com/user-attachments/assets/b296d265-593c-42a1-9409-6b9b6aee66ca" />
+<img width="1536" height="692" alt="Screenshot 2026-07-31 183344" src="https://github.com/user-attachments/assets/61ba0a43-e043-46f3-bccb-f526ba3bf2e5" />
+
+
+
 ## 🌟 Özellikler
 
 - **3D Cold Start Deneyimi (Tinder Tarzı):** Kullanıcının film zevklerini analiz etmek için geliştirilen 3 boyutlu, tamamen akıcı ve "Spam Click" korumalı interaktif kart kaydırma deneyimi. 
