@@ -1,0 +1,29 @@
+# Gizli Dosyalar
+.env
+.env.*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+venv/
+env/
+.venv/
+
+# Veri Dosyaları (Büyük ve statik dosyalar github'a yüklenmez)
+data/
+*.pkl
+*.csv
+
+# İşletim Sistemi Kalıntıları
+.DS_Store
+Thumbs.db
+
+# IDE ve Yapay Zeka Ajanları Kalıntıları
+.vscode/
+.idea/
+.gemini/
+.agents/
+skills/
+SKILL.md
