@@ -1,6 +1,6 @@
-# FilmciBaba — Sinematik Evrenini Keşfet 🎬
+# CineFlow — Sinematik Evrenini Keşfet 🎬
 
-FilmciBaba, modern bir 3 Boyutlu (3D) web arayüzüne ve yapay zeka tabanlı (Vektör Benzerliği) bir film öneri motoruna sahip, elit ve yepyeni bir film keşif platformudur. 
+CineFlow, modern bir 3 Boyutlu (3D) web arayüzüne ve yapay zeka tabanlı (Vektör Benzerliği) bir film öneri motoruna sahip, elit ve yepyeni bir film keşif platformudur. 
 
 ## 🌟 Özellikler
 
@@ -15,8 +15,8 @@ Projeyi kendi bilgisayarınızda çalıştırmak için aşağıdaki adımları i
 
 1. **Depoyu klonlayın:**
    ```bash
-   git clone https://github.com/KULLANICI_ADINIZ/filmcibaba.git
-   cd filmcibaba
+   git clone https://github.com/KULLANICI_ADINIZ/cineflow.git
+   cd cineflow
    ```
 
 2. **Bağımlılıkları yükleyin:**

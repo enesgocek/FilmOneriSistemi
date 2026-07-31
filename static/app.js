@@ -1,5 +1,5 @@
 /**
- * FilmciBaba — Antigravity Swipe & Recommendation Engine
+ * CineFlow — Antigravity Swipe & Recommendation Engine
  * =========================================================
  * Cold Start: Tinder-style swipe cards → Home: Personalized recommendations
  */

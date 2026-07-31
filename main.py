@@ -138,7 +138,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="CineVec Film Öneri Motoru API",
+    title="CineFlow API",
     description="İşbirlikçi Filtreleme ve NLP Vektör Benzerliği önerileri için yüksek performanslı backend API.",
     version="1.0.0",
     lifespan=lifespan,
