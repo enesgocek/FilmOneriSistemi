@@ -97,6 +97,70 @@ body {
 }
 
 /* ============================================
+   GLOBAL NAVIGATION BAR
+   ============================================ */
+.main-nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 1000;
+    background: rgba(12, 12, 29, 0.6);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--ag-glass-border);
+    transform: translateY(-100%); /* Başlangıçta ekranın dışında */
+    opacity: 0;
+}
+
+.nav__container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: var(--space-md) var(--space-xl);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.nav__brand {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--ag-text-primary);
+    text-decoration: none;
+    letter-spacing: -0.02em;
+}
+
+.nav__brand i {
+    color: var(--ag-accent-glow);
+}
+
+.nav__links {
+    list-style: none;
+    display: flex;
+    gap: var(--space-lg);
+}
+
+.nav__link {
+    color: var(--ag-text-secondary);
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 0.95rem;
+    transition: color 0.3s ease;
+}
+
+.nav__link:hover {
+    color: var(--ag-text-primary);
+}
+
+.nav__link.active {
+    color: var(--ag-accent-glow);
+}
+
+/* ============================================
    Background Ambient Layer
    ============================================ */
 .ambient-bg {
@@ -227,18 +291,75 @@ body {
     background: transparent;
 }
 
-/* Swipe Card */
 .swipe-card {
     position: absolute;
     inset: 0;
     border-radius: var(--radius-xl);
-    overflow: hidden;
     cursor: grab;
-    touch-action: none;
+    touch-action: pan-y;
     will-change: transform;
-    transition: box-shadow var(--ag-transition-smooth);
+    perspective: 1500px;
+}
+
+.swipe-card:active {
+    cursor: grabbing;
+}
+
+.swipe-card__inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transform-style: preserve-3d;
+}
+
+.swipe-card__face {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    border-radius: var(--radius-xl);
+    overflow: hidden;
     box-shadow: var(--ag-shadow-card);
+}
+
+.swipe-card__front-face {
     background: var(--ag-bg-mid);
+}
+
+.swipe-card__back-face {
+    background: var(--ag-bg-deep);
+    border: 1px solid var(--ag-glass-border);
+    transform: rotateY(180deg);
+    padding: var(--space-xl);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+.swipe-card__back-face::-webkit-scrollbar { width: 4px; }
+.swipe-card__back-face::-webkit-scrollbar-track { background: transparent; }
+.swipe-card__back-face::-webkit-scrollbar-thumb { background: var(--ag-glass); border-radius: 4px; }
+
+.swipe-card__back-title {
+    font-family: var(--font-display);
+    font-size: 1.4rem;
+    color: var(--ag-text-primary);
+    margin-bottom: var(--space-xs);
+    line-height: 1.2;
+}
+
+.swipe-card__divider {
+    height: 1px;
+    background: var(--ag-glass-border);
+    margin: var(--space-md) 0;
+}
+
+.swipe-card__synopsis {
+    font-size: 0.95rem;
+    color: var(--ag-text-secondary);
+    line-height: 1.6;
+    text-align: justify;
 }
 
 .swipe-card:active {
@@ -572,7 +693,7 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: flex-start;
-    padding: var(--space-2xl) var(--space-lg);
+    padding: 120px var(--space-lg) var(--space-2xl); /* Navbar örtüşmesini önlemek için 120px */
     min-height: 100vh;
 }
 

@@ -90,6 +90,31 @@
         getHealthStatus() {
             return this.fetchJSON('/health');
         },
+
+        async translateText(text, targetElement) {
+            targetElement.dataset.translated = 'true';
+            targetElement.innerHTML = '<span style="opacity: 0.5; animation: pulseCore 1.5s infinite;">Çevriliyor...</span>';
+            try {
+                const chunks = text.match(/.{1,499}/g) || [];
+                let translatedFull = '';
+                
+                for (const chunk of chunks) {
+                    const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(chunk)}&langpair=en|tr`);
+                    const data = await res.json();
+                    if (data && data.responseData && data.responseData.translatedText) {
+                        translatedFull += data.responseData.translatedText + ' ';
+                    }
+                }
+                
+                if (translatedFull.trim()) {
+                    targetElement.innerHTML = translatedFull.trim();
+                } else {
+                    targetElement.innerHTML = text;
+                }
+            } catch (e) {
+                targetElement.innerHTML = text;
+            }
+        },
     };
 
     // ============================================
@@ -176,7 +201,27 @@
         showOnboarding() { this.switchTo('onboarding-view'); },
         showColdStart() { this.switchTo('cold-start-view'); },
         showTransition() { this.switchTo('transition-view'); },
-        showHome() { this.switchTo('home-view'); },
+        showHome() { 
+            this.switchTo('home-view'); 
+            
+            // Show Navbar gracefully with GSAP when entering home
+            const nav = document.getElementById('main-nav');
+            if (nav) {
+                if (typeof gsap !== 'undefined') {
+                    gsap.to(nav, {
+                        y: 0,
+                        opacity: 1,
+                        duration: 1.2,
+                        ease: 'power3.out',
+                        delay: 0.3 // Kartlar belirmeden hemen önce usulca süzülür
+                    });
+                } else {
+                    nav.style.transform = 'translateY(0)';
+                    nav.style.opacity = '1';
+                    nav.style.transition = 'all 1s ease';
+                }
+            }
+        },
     };
 
     // ============================================
@@ -297,13 +342,22 @@
             const overview = movie.overview || '';
 
             card.innerHTML = `
-                <div class="swipe-overlay swipe-overlay--like">BEĞENDİM ✅</div>
-                <div class="swipe-overlay swipe-overlay--pass">GEÇ ❌</div>
-                <div class="swipe-card__poster-placeholder">🎬</div>
-                <div class="swipe-card__info">
-                    <h2 class="swipe-card__title">${this.escapeHTML(movie.title)}</h2>
-                    <div class="swipe-card__genres">${genrePills}</div>
-                    ${overview ? `<p class="swipe-card__overview">${this.escapeHTML(overview)}</p>` : ''}
+                <div class="swipe-card__inner">
+                    <div class="swipe-card__face swipe-card__front-face">
+                        <div class="swipe-overlay swipe-overlay--like">BEĞENDİM ✅</div>
+                        <div class="swipe-overlay swipe-overlay--pass">GEÇ ❌</div>
+                        <div class="swipe-card__poster-placeholder">🎬</div>
+                        <div class="swipe-card__info">
+                            <h2 class="swipe-card__title">${this.escapeHTML(movie.title)}</h2>
+                            <div class="swipe-card__genres">${genrePills}</div>
+                        </div>
+                    </div>
+                    <div class="swipe-card__face swipe-card__back-face">
+                        <h2 class="swipe-card__back-title">${this.escapeHTML(movie.title)}</h2>
+                        <div class="swipe-card__genres">${genrePills}</div>
+                        <div class="swipe-card__divider"></div>
+                        <p class="swipe-card__synopsis">Yükleniyor...</p>
+                    </div>
                 </div>
             `;
 
@@ -463,11 +517,16 @@
             const frontCard = DOM.cardStack.querySelector('.swipe-card--front');
             if (!frontCard) return;
 
+            const target = e.target;
+            const backFace = target.closest('.swipe-card__back-face');
+            if (backFace && e.offsetX > backFace.clientWidth) return;
+
             STATE.isDragging = true;
             STATE.startX = e.clientX;
+            STATE.startY = e.clientY;
             STATE.currentX = 0;
             frontCard.style.transition = 'none';
-            e.preventDefault();
+            if (!backFace) e.preventDefault();
         },
 
         onPointerMove(e) {
@@ -506,6 +565,11 @@
             const frontCard = DOM.cardStack.querySelector('.swipe-card--front');
             if (!frontCard) return;
 
+            if (Math.abs(STATE.currentX) < 10 && Math.abs(e.clientY - STATE.startY) < 10) {
+                this.executeFlipAnimation(frontCard);
+                return;
+            }
+
             const cardWidth = frontCard.offsetWidth;
             const threshold = cardWidth * CONFIG.SWIPE_THRESHOLD;
 
@@ -516,6 +580,62 @@
             } else {
                 // Snap back
                 this.snapBack(frontCard);
+            }
+        },
+
+        executeFlipAnimation(card) {
+            if (STATE.isAnimating) return;
+            const inner = card.querySelector('.swipe-card__inner');
+            if (!inner) return;
+
+            STATE.isAnimating = true;
+            const isCurrentlyFlipped = card.classList.contains('is-flipped');
+            
+            // Translate the synopsis when flipping for the first time
+            const synopsisEl = inner.querySelector('.swipe-card__synopsis');
+            if (synopsisEl && !synopsisEl.dataset.translated) {
+                const movie = STATE.coldStartMovies[STATE.currentCardIndex];
+                const cacheKey = movie.title.toLowerCase();
+                const tmdbData = STATE.tmdbCache[cacheKey];
+                const textToTranslate = (tmdbData && tmdbData.overview) ? tmdbData.overview : (movie.overview || 'Bu film için henüz Türkçe özet bulunmuyor.');
+                
+                API.translateText(textToTranslate, synopsisEl);
+            }
+
+            if (typeof gsap !== 'undefined') {
+                const tl = gsap.timeline({
+                    onComplete: () => {
+                        card.classList.toggle('is-flipped');
+                        STATE.isAnimating = false;
+                    }
+                });
+
+                const targetRotY = isCurrentlyFlipped ? 0 : 180;
+                const midRotY = isCurrentlyFlipped ? 90 : 90;
+                
+                // Pokemon card style flip: Move to side, rotate, and move back
+                tl.to(inner, {
+                    x: 150, 
+                    z: 100, 
+                    rotationY: midRotY,
+                    rotationZ: 5,
+                    scale: 1.15,
+                    duration: 0.3,
+                    ease: 'power2.in'
+                })
+                .to(inner, {
+                    x: 0,
+                    z: 0,
+                    rotationY: targetRotY,
+                    rotationZ: 0,
+                    scale: 1,
+                    duration: 0.4,
+                    ease: 'back.out(1.2)'
+                });
+            } else {
+                card.classList.toggle('is-flipped');
+                inner.style.transform = isCurrentlyFlipped ? 'rotateY(0deg)' : 'rotateY(180deg)';
+                STATE.isAnimating = false;
             }
         },
 
