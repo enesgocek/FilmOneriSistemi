@@ -177,6 +177,8 @@ body {
     filter: blur(100px);
     opacity: 0.25;
     animation: orbFloat 20s ease-in-out infinite;
+    transform: translateZ(0);
+    will-change: transform;
 }
 
 .ambient-orb--purple {
@@ -297,7 +299,7 @@ body {
     border-radius: var(--radius-xl);
     cursor: grab;
     touch-action: pan-y;
-    will-change: transform;
+    will-change: transform, opacity;
     perspective: 1500px;
 }
 

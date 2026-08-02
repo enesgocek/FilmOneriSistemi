@@ -55,6 +55,7 @@
         DOM.statusDot = document.getElementById('status-dot');
         DOM.statusText = document.getElementById('status-text');
         DOM.statusMovies = document.getElementById('status-movies');
+        DOM.btnRestart = document.getElementById('btn-restart');
     }
 
 
@@ -229,6 +230,12 @@
     // ============================================
     const OnboardingController = {
         init() {
+            // Animasyon kalıntılarını temizle (Restart durumu için)
+            if (typeof gsap !== 'undefined') {
+                gsap.set('.onboarding__title, .onboarding__subtitle, .year-card', { clearProps: 'all' });
+            }
+            STATE.isOnboardingTransitioning = false;
+
             ViewManager.showOnboarding();
             
             const buttons = document.querySelectorAll('.year-card');
@@ -238,22 +245,142 @@
                 btn.parentNode.replaceChild(newBtn, btn);
                 
                 newBtn.addEventListener('click', async () => {
+                    if (STATE.isOnboardingTransitioning) return;
+                    STATE.isOnboardingTransitioning = true;
+
                     const min = newBtn.dataset.min;
                     const max = newBtn.dataset.max;
                     
                     STATE.selectedMinYear = min ? parseInt(min, 10) : null;
                     STATE.selectedMaxYear = max ? parseInt(max, 10) : null;
                     
-                    // Add click animation
+                    // Başlar başlamaz arka planda verileri ve resimleri çek (preload)
+                    const preloadPromise = ColdStartFlow.preloadAndFetch();
+                    
+                    // Butona tıklandığını hissettiren ufak sekme (tıklama) efekti
                     if (typeof gsap !== 'undefined') {
                         gsap.to(newBtn, { scale: 0.95, duration: 0.1, yoyo: true, repeat: 1 });
                     }
+
+                    // 3D Çıkış Animasyonu
+                    let animPromise;
+                    if (typeof gsap !== 'undefined') {
+                        animPromise = new Promise(resolve => {
+                            // Tüm animasyon dizisini (timeline) başlatmadan önce gecikme (delay) ekliyoruz
+                            const tl = gsap.timeline({ 
+                                delay: 0.4, // Tüm süreci 0.4 saniye bekletip öyle başlatır
+                                onComplete: resolve 
+                            });
+                            
+                            const title = document.querySelector('.onboarding__title');
+                            const subtitle = document.querySelector('.onboarding__subtitle');
+                            const allBtns = Array.from(document.querySelectorAll('.year-card'));
+                            const otherBtns = allBtns.filter(b => b !== newBtn);
+                            
+                            tl.to([title, subtitle, ...otherBtns], {
+                                y: -50,
+                                opacity: 0,
+                                duration: 0.3,
+                                stagger: 0.1,
+                                ease: 'power2.in'
+                            });
+
+                            const rect = newBtn.getBoundingClientRect();
+                            const centerX = window.innerWidth / 2;
+                            const centerY = window.innerHeight / 2;
+                            const moveX = centerX - (rect.left + rect.width / 2);
+                            const moveY = centerY - (rect.top + rect.height / 2);
+
+                            tl.to(newBtn, {
+                                x: moveX,
+                                y: moveY,
+                                scale: 1.2,
+                                zIndex: 100,
+                                boxShadow: '0 0 40px rgba(124, 111, 247, 0.8)',
+                                duration: 0.5,
+                                ease: 'power2.out'
+                            });
+
+                            tl.add(() => {
+                                // Çerçeve için bağımsız bir "Portal" elementi oluştur
+                                const portal = document.createElement('div');
+                                const rect = newBtn.getBoundingClientRect();
+                                const computed = window.getComputedStyle(newBtn);
+
+                                portal.id = 'temp-portal';
+                                portal.style.position = 'fixed';
+                                portal.style.left = rect.left + 'px';
+                                portal.style.top = rect.top + 'px';
+                                portal.style.width = rect.width + 'px';
+                                portal.style.height = rect.height + 'px';
+                                portal.style.background = computed.background;
+                                portal.style.backgroundColor = computed.backgroundColor;
+                                portal.style.backgroundImage = computed.backgroundImage;
+                                portal.style.backdropFilter = computed.backdropFilter;
+                                portal.style.webkitBackdropFilter = computed.webkitBackdropFilter;
+                                portal.style.border = computed.border;
+                                portal.style.borderRadius = computed.borderRadius;
+                                portal.style.boxShadow = computed.boxShadow;
+                                portal.style.zIndex = '99'; // Butonun arkasında
+                                portal.style.pointerEvents = 'none'; // Tıklamaları engellememesi için garanti
+                                document.body.appendChild(portal);
+
+                                // Orijinal butonun arka planını şeffaf yap (Sadece yazılar kalsın, hiçbir sıçrama olmaz)
+                                newBtn.style.background = 'transparent';
+                                newBtn.style.border = 'none';
+                                newBtn.style.boxShadow = 'none';
+                                newBtn.style.backdropFilter = 'none';
+
+                                // Portal (çerçeve) yavaş yavaş hızlanarak genişlesin (power2.in mükemmel huni verir)
+                                gsap.to(portal, {
+                                    scale: 25,
+                                    opacity: 0,
+                                    duration: 1.5,
+                                    ease: 'power2.in'
+                                });
+
+                                // Orijinal butonun içindeki metinler (butonun kendisi) zıplasın
+                                gsap.to(newBtn, {
+                                    scale: 1.8,
+                                    duration: 0.5,
+                                    ease: 'bounce.out',
+                                    delay: 0.7
+                                });
+
+                                // Sağa sola sallan ve merkeze dön
+                                gsap.to(newBtn, {
+                                    keyframes: [
+                                        { rotation: 8, duration: 0.15, ease: 'sine.out' },   
+                                        { rotation: -8, duration: 0.2, ease: 'sine.inOut' }, 
+                                        { rotation: 0, duration: 0.15, ease: 'sine.inOut' }  
+                                    ],
+                                    delay: 0.7
+                                });
+                                
+                                // Orijinal butonu sahneden çıkışa doğru erit
+                                gsap.to(newBtn, {
+                                    opacity: 0,
+                                    duration: 0.4,
+                                    delay: 1.2 
+                                });
+                            });
+
+                            // Metin animasyonlarının ve portalın bitmesini beklemesi için timeline'ı uzat
+                            tl.to({}, { duration: 0.1 }, "+=1.5");
+                        });
+                    } else {
+                        animPromise = new Promise(resolve => setTimeout(resolve, 2400));
+                    }
                     
-                    // Delay for UI feedback before transitioning
-                    setTimeout(() => {
-                        ViewManager.showColdStart();
-                        ColdStartFlow.init();
-                    }, 300);
+                    // Hem animasyon hem preload bittiğinde geçiş yap
+                    await Promise.all([animPromise, preloadPromise]);
+                    
+                    // Geçici portal elementini DOM'dan temizle (tıklamaları engellememesi için)
+                    const tempPortal = document.getElementById('temp-portal');
+                    if (tempPortal) tempPortal.remove();
+
+                    ViewManager.showColdStart();
+                    ColdStartFlow.initAfterPreload();
                 });
             });
         }
@@ -263,7 +390,7 @@
     // Cold Start — Card Rendering
     // ============================================
     const ColdStartFlow = {
-        async init() {
+        async preloadAndFetch() {
             try {
                 const data = await API.getColdStartMovies();
                 STATE.coldStartMovies = data.movies || [];
@@ -272,15 +399,36 @@
                 STATE.passedMovies = [];
                 STATE.decisions = [];
 
+                // Arka planda posterleri preload yap
+                const preloadPromises = STATE.coldStartMovies.map(async (movie) => {
+                    const posterURL = await TMDBService.getPosterURL(movie.title);
+                    if (posterURL) {
+                        return new Promise(resolve => {
+                            const img = new Image();
+                            img.onload = resolve;
+                            img.onerror = resolve;
+                            img.src = posterURL;
+                        });
+                    }
+                });
+                await Promise.all(preloadPromises);
+
                 this.renderProgressDots();
                 await this.renderCardStack();
-                this.bindEvents();
-                this.animateEntrance();
             } catch (e) {
+                console.error("Preload error", e);
                 DOM.cardStack.innerHTML = `
-                    <div style="text-align:center; color: var(--ag-text-secondary); padding: 2rem;">
+                    <div class="cold-start-error" style="text-align:center; color: var(--ag-text-secondary); padding: 2rem;">
                         Bir hata oluştu, lütfen sayfayı yenileyin.
                     </div>`;
+            }
+        },
+
+        initAfterPreload() {
+            // Hata mesajı varsa bağlamayı atla
+            if (DOM.cardStack.children.length > 0 && !DOM.cardStack.querySelector('.cold-start-error')) {
+                this.bindEvents();
+                this.animateEntrance();
             }
         },
 
@@ -321,6 +469,11 @@
         async createCardElement(movie, stackOffset) {
             const card = document.createElement('div');
             card.className = 'swipe-card';
+            
+            // FOUC (Flash of Unstyled Content) engellemek için kartları DOM'a eklendiklerinde %100 şeffaf yap.
+            // Bu sayede ViewManager.showColdStart() çalıştırıldığı milisaniyede ekranda pat diye belirmezler.
+            // Sadece GSAP animasyonu başladığında yumuşakça görünür olurlar.
+            card.style.opacity = '0';
 
             if (stackOffset === 0) {
                 card.classList.add('swipe-card--front');
@@ -492,9 +645,12 @@
         },
 
         bindEvents() {
+            if (this._eventsBound) return;
+            this._eventsBound = true;
+
             // Pointer events on card stack for swipe
             DOM.cardStack.addEventListener('pointerdown', this.onPointerDown.bind(this));
-            document.addEventListener('pointermove', this.onPointerMove.bind(this));
+            document.addEventListener('pointermove', this.onPointerMove.bind(this), { passive: true });
             document.addEventListener('pointerup', this.onPointerUp.bind(this));
 
             // Action buttons
@@ -536,25 +692,33 @@
             if (!frontCard) return;
 
             STATE.currentX = e.clientX - STATE.startX;
-            const rotation = (STATE.currentX / window.innerWidth) * CONFIG.MAX_ROTATION * 2;
-            const clampedRotation = Math.max(-CONFIG.MAX_ROTATION, Math.min(CONFIG.MAX_ROTATION, rotation));
+            
+            if (!this._ticking) {
+                this._ticking = true;
+                requestAnimationFrame(() => {
+                    const rotation = (STATE.currentX / window.innerWidth) * CONFIG.MAX_ROTATION * 2;
+                    const clampedRotation = Math.max(-CONFIG.MAX_ROTATION, Math.min(CONFIG.MAX_ROTATION, rotation));
 
-            frontCard.style.transform = `translateX(${STATE.currentX}px) rotate(${clampedRotation}deg)`;
+                    frontCard.style.transform = `translateX(${STATE.currentX}px) rotate(${clampedRotation}deg)`;
 
-            // Show overlays based on direction
-            const likeOverlay = frontCard.querySelector('.swipe-overlay--like');
-            const passOverlay = frontCard.querySelector('.swipe-overlay--pass');
-            const cardWidth = frontCard.offsetWidth;
-            const progress = Math.abs(STATE.currentX) / (cardWidth * CONFIG.SWIPE_THRESHOLD);
+                    // Show overlays based on direction
+                    const likeOverlay = frontCard.querySelector('.swipe-overlay--like');
+                    const passOverlay = frontCard.querySelector('.swipe-overlay--pass');
+                    const cardWidth = frontCard.offsetWidth;
+                    const progress = Math.abs(STATE.currentX) / (cardWidth * CONFIG.SWIPE_THRESHOLD);
 
-            if (STATE.currentX > 0) {
-                likeOverlay.style.opacity = Math.min(1, progress);
-                passOverlay.style.opacity = 0;
-                frontCard.style.boxShadow = `0 0 ${30 * progress}px var(--ag-swipe-like-glow)`;
-            } else if (STATE.currentX < 0) {
-                passOverlay.style.opacity = Math.min(1, progress);
-                likeOverlay.style.opacity = 0;
-                frontCard.style.boxShadow = `0 0 ${30 * progress}px var(--ag-swipe-pass-glow)`;
+                    if (STATE.currentX > 0) {
+                        likeOverlay.style.opacity = Math.min(1, progress);
+                        passOverlay.style.opacity = 0;
+                        frontCard.style.boxShadow = `0 0 ${30 * progress}px var(--ag-swipe-like-glow)`;
+                    } else if (STATE.currentX < 0) {
+                        passOverlay.style.opacity = Math.min(1, progress);
+                        likeOverlay.style.opacity = 0;
+                        frontCard.style.boxShadow = `0 0 ${30 * progress}px var(--ag-swipe-pass-glow)`;
+                    }
+                    
+                    this._ticking = false;
+                });
             }
         },
 
@@ -1207,10 +1371,27 @@
         StatusModule.check();
 
         // Restart button
-        DOM.btnRestart.addEventListener('click', async () => {
-            STATE.tmdbCache = {};
-            await OnboardingController.init();
-        });
+        if (DOM.btnRestart) {
+            let isRestarting = false;
+            DOM.btnRestart.addEventListener('click', async () => {
+                if (isRestarting) return;
+                isRestarting = true;
+                
+                // Butonu görsel olarak pasif yap
+                DOM.btnRestart.style.opacity = '0.5';
+                DOM.btnRestart.style.pointerEvents = 'none';
+                
+                STATE.tmdbCache = {};
+                await OnboardingController.init();
+                
+                // Saniye sonra kilidi kaldır (onboarding ekranına geçildiğinde)
+                setTimeout(() => {
+                    isRestarting = false;
+                    DOM.btnRestart.style.opacity = '1';
+                    DOM.btnRestart.style.pointerEvents = 'auto';
+                }, 1000);
+            });
+        }
     }
 
     // Wait for DOM + scripts

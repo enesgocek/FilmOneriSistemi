@@ -6,7 +6,7 @@ from typing import Optional, List, Dict, Any
 
 import numpy as np
 import pandas as pd
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
@@ -87,9 +87,21 @@ def load_backend_data():
             if clean_title not in title_to_index:
                 title_to_index[clean_title] = idx
 
+    # Pre-compute genre indices for O(1) filtering in cold-start
+    genre_buckets = [
+        "Action", "Comedy", "Drama", "Sci-Fi", "Horror",
+        "Romance", "Thriller", "Animation", "Adventure", "Crime",
+        "Fantasy", "Mystery", "Documentary", "War", "Musical"
+    ]
+    genre_indices = {}
+    for genre in genre_buckets:
+        mask = df_movies["genres"].str.contains(genre, na=False, regex=False)
+        genre_indices[genre] = df_movies.index[mask].tolist()
+
     DATA_STORE["df_movies"] = df_movies
     DATA_STORE["embeddings_norm"] = embeddings_norm
     DATA_STORE["title_to_index"] = title_to_index
+    DATA_STORE["genre_indices"] = genre_indices
     DATA_STORE["total_movies"] = len(df_movies)
 
     print(f"[OK] Loaded {len(df_movies)} movie embeddings matrix ({embeddings_norm.shape}) in {time.time() - start_time:.2f}s")
@@ -152,6 +164,47 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# --- Cyber Security Kalkanı ---
+
+# 1. IP tabanlı basit Rate Limiting (1 dakikada max 100 istek)
+RATE_LIMIT_STORE = {}
+RATE_LIMIT_MAX = 100
+RATE_LIMIT_WINDOW = 60.0 # saniye
+
+@app.middleware("http")
+async def rate_limiter(request: Request, call_next):
+    # Statik dosyalara hız sınırı koyma
+    if request.url.path.startswith("/static"):
+        return await call_next(request)
+        
+    client_ip = request.client.host if request.client else "unknown"
+    current_time = time.time()
+    
+    if client_ip not in RATE_LIMIT_STORE:
+        RATE_LIMIT_STORE[client_ip] = []
+        
+    # Temizle
+    RATE_LIMIT_STORE[client_ip] = [t for t in RATE_LIMIT_STORE[client_ip] if current_time - t < RATE_LIMIT_WINDOW]
+    
+    if len(RATE_LIMIT_STORE[client_ip]) >= RATE_LIMIT_MAX:
+        return JSONResponse(
+            status_code=429,
+            content={"detail": "Too Many Requests - Rate limit exceeded. Bot behavior detected."}
+        )
+        
+    RATE_LIMIT_STORE[client_ip].append(current_time)
+    return await call_next(request)
+
+# 2. Güvenlik Başlıkları (Security Headers)
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return response
 
 # Ensure static directory exists
 os.makedirs("static", exist_ok=True)
@@ -262,7 +315,7 @@ def get_similar_movies(
     embeddings_norm = DATA_STORE["embeddings_norm"]
 
     target_movie = df_movies.iloc[target_idx]
-    query_vector = embeddings_norm[target_idx]
+    query_vector = embeddings_norm[target_idx].astype(np.float32)
 
     # Optimized NumPy dot product vector lookup (Cosine similarity across 56k vectors)
     similarities = np.dot(embeddings_norm, query_vector)
@@ -380,9 +433,17 @@ def get_cold_start_movies(
         if len(selected_movies) >= count:
             break
 
-        # Vectorized check for genre
-        genre_mask = filtered_df["genres"].str.contains(genre, na=False, regex=False)
-        genre_df = filtered_df[genre_mask]
+        # Fast pre-computed index lookup
+        indices_for_genre = DATA_STORE["genre_indices"].get(genre, [])
+        if not indices_for_genre:
+            continue
+            
+        # Intersect with year filter
+        valid_indices = list(set(indices_for_genre).intersection(set(filtered_df.index)))
+        
+        if valid_indices:
+            # Create a dataframe slice from the valid indices
+            genre_df = df_movies.loc[valid_indices]
         
         if not genre_df.empty:
             # Take up to 50 random samples and pick the first good one (with valid overview)
