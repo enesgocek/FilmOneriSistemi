@@ -92,6 +92,22 @@
             return this.fetchJSON('/health');
         },
 
+        async translateTextRaw(text) {
+            try {
+                const res = await fetch('/api/translate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ q: text })
+                });
+                const data = await res.json();
+                return data.translatedText || text;
+            } catch (e) {
+                return text;
+            }
+        },
+
         async translateText(text, targetElement) {
             targetElement.dataset.translated = 'true';
             targetElement.innerHTML = '<span style="opacity: 0.5; animation: pulseCore 1.5s infinite;">Çevriliyor...</span>';
@@ -170,6 +186,7 @@
                     const fullURL = validResult.poster_path ? `${CONFIG.TMDB_IMG_BASE}${validResult.poster_path}` : null;
                     
                     STATE.tmdbCache[cacheKey] = {
+                        id: validResult.id,
                         posterUrl: fullURL,
                         overview: validResult.overview || '',
                         title: validResult.title || cleanName,
@@ -196,6 +213,16 @@
             const target = document.getElementById(viewId);
             if (target) {
                 target.classList.add('view--active');
+            }
+            
+            // Sadece öneriler sayfasında navbar'ı göster
+            const nav = document.getElementById('main-nav');
+            if (nav) {
+                if (viewId === 'home-view') {
+                    nav.style.display = ''; // CSS'teki orijinal display ayarına dön
+                } else {
+                    nav.style.display = 'none';
+                }
             }
         },
 
@@ -387,6 +414,25 @@
     };
 
     // ============================================
+    // Movie Validator (Data Quality Check)
+    // ============================================
+    const MovieValidator = {
+        isValid(movie, tmdbData) {
+            const hasPoster = !!(tmdbData && tmdbData.posterUrl);
+            const hasRating = !!(tmdbData && tmdbData.rating > 0);
+            
+            let hasGenre = false;
+            if (movie.genres && typeof movie.genres === 'string') {
+                const g = movie.genres.trim();
+                hasGenre = g !== '' && g !== '(no genres listed)';
+            }
+
+            // Must have a poster AND at least one of (genre or rating)
+            return hasPoster && (hasGenre || hasRating);
+        }
+    };
+
+    // ============================================
     // Cold Start — Card Rendering
     // ============================================
     const ColdStartFlow = {
@@ -399,9 +445,31 @@
                 STATE.passedMovies = [];
                 STATE.decisions = [];
 
-                // Arka planda posterleri preload yap
+                // Arka planda posterleri preload yap ve çevirileri başlat
                 const preloadPromises = STATE.coldStartMovies.map(async (movie) => {
                     const posterURL = await TMDBService.getPosterURL(movie.title);
+                    
+                    const cacheKey = movie.title.toLowerCase();
+                    const tmdbData = STATE.tmdbCache[cacheKey];
+                    const textToTranslate = (tmdbData && tmdbData.overview) ? tmdbData.overview : (movie.overview || '');
+                    
+                    if (textToTranslate && (!tmdbData || !tmdbData.translationPromise)) {
+                        if (!STATE.tmdbCache[cacheKey]) STATE.tmdbCache[cacheKey] = {};
+                        STATE.tmdbCache[cacheKey].translationPromise = API.translateTextRaw(textToTranslate).then(translated => {
+                            STATE.tmdbCache[cacheKey].overview_tr = translated;
+                            const activeCard = document.querySelector('.swipe-card--front.is-flipped');
+                            if (activeCard) {
+                                const titleEl = activeCard.querySelector('.swipe-card__title');
+                                if (titleEl && titleEl.textContent === movie.title) {
+                                    const synopsisEl = activeCard.querySelector('.swipe-card__synopsis');
+                                    if (synopsisEl && synopsisEl.innerHTML.includes('Çevriliyor')) {
+                                        synopsisEl.innerHTML = translated;
+                                    }
+                                }
+                            }
+                        });
+                    }
+
                     if (posterURL) {
                         return new Promise(resolve => {
                             const img = new Image();
@@ -412,6 +480,22 @@
                     }
                 });
                 await Promise.all(preloadPromises);
+
+                // Veri kalitesi düşük filmleri filtrele
+                STATE.coldStartMovies = STATE.coldStartMovies.filter(movie => {
+                    const cacheKey = movie.title.toLowerCase();
+                    const tmdbData = STATE.tmdbCache[cacheKey];
+                    return MovieValidator.isValid(movie, tmdbData);
+                });
+
+                if (STATE.coldStartMovies.length === 0) {
+                    // Eğer tüm filmler kalitesizse direkt ana ekrana geç (rastgele 10 tane daha çekmek yerine)
+                    this.transitionToHome();
+                    return;
+                }
+
+                // Geçici portal elementini DOM'dan temizle
+                const tempPortal = document.getElementById('temp-portal');
 
                 this.renderProgressDots();
                 await this.renderCardStack();
@@ -760,10 +844,18 @@
             if (synopsisEl && !synopsisEl.dataset.translated) {
                 const movie = STATE.coldStartMovies[STATE.currentCardIndex];
                 const cacheKey = movie.title.toLowerCase();
-                const tmdbData = STATE.tmdbCache[cacheKey];
-                const textToTranslate = (tmdbData && tmdbData.overview) ? tmdbData.overview : (movie.overview || 'Bu film için henüz Türkçe özet bulunmuyor.');
+                const tmdbData = STATE.tmdbCache[cacheKey] || {};
                 
-                API.translateText(textToTranslate, synopsisEl);
+                if (tmdbData.overview_tr) {
+                    synopsisEl.innerHTML = tmdbData.overview_tr;
+                    synopsisEl.dataset.translated = 'true';
+                } else if (tmdbData.translationPromise) {
+                    synopsisEl.dataset.translated = 'true';
+                    synopsisEl.innerHTML = '<span style="opacity: 0.5; animation: pulseCore 1.5s infinite;">Çevriliyor...</span>';
+                } else {
+                    const textToTranslate = (tmdbData && tmdbData.overview) ? tmdbData.overview : (movie.overview || 'Bu film için henüz Türkçe özet bulunmuyor.');
+                    API.translateText(textToTranslate, synopsisEl);
+                }
             }
 
             if (typeof gsap !== 'undefined') {
@@ -831,23 +923,34 @@
             // Animate card off-screen
             const flyX = direction === 'like' ? window.innerWidth : -window.innerWidth;
             const flyRotation = direction === 'like' ? 30 : -30;
+            
+            // Eğer kart mouse ile sürükleniyorsa bulunduğu konumdan fırlat (Snap-back sorununu çözer)
+            const startX = STATE.currentX || 0;
+            const startRot = Math.max(-CONFIG.MAX_ROTATION, Math.min(CONFIG.MAX_ROTATION, startX * 0.1));
 
             if (typeof gsap !== 'undefined') {
-                gsap.to(card, {
-                    x: flyX,
-                    rotation: flyRotation,
-                    opacity: 0,
-                    duration: 0.45,
-                    ease: 'power2.in',
-                    onComplete: () => {
-                        this.onSwipeComplete();
-                    },
-                });
+                gsap.fromTo(card, 
+                    { x: startX, rotation: startRot },
+                    {
+                        x: flyX,
+                        rotation: flyRotation,
+                        opacity: 0,
+                        duration: 0.45,
+                        ease: 'power2.in',
+                        onComplete: () => {
+                            STATE.currentX = 0;
+                            this.onSwipeComplete();
+                        },
+                    }
+                );
             } else {
                 card.style.transition = '0.45s ease-in';
                 card.style.transform = `translateX(${flyX}px) rotate(${flyRotation}deg)`;
                 card.style.opacity = '0';
-                setTimeout(() => this.onSwipeComplete(), 450);
+                setTimeout(() => {
+                    STATE.currentX = 0;
+                    this.onSwipeComplete();
+                }, 450);
             }
 
             // Update progress dot
@@ -958,20 +1061,83 @@
 
         async transitionToHome() {
             ViewManager.showTransition();
+            const minTransitionTime = new Promise(r => setTimeout(r, 2500));
 
             // Generate recommendations based on liked movies
             const recommendations = await RecommendEngine.generate(STATE.likedMovies);
+            STATE.currentRecommendations = recommendations;
 
-            // Wait a moment for the transition effect
-            await new Promise(r => setTimeout(r, 1500));
+            // Arka planda posterleri ve çevirileri başlat
+            const BATCH_SIZE = 5;
+            for (let i = 0; i < recommendations.length; i += BATCH_SIZE) {
+                const batch = recommendations.slice(i, i + BATCH_SIZE);
+                await Promise.all(batch.map(async (movie) => {
+                    const posterURL = await TMDBService.getPosterURL(movie.title);
+                    
+                    const cacheKey = movie.title.toLowerCase();
+                    const tmdbData = STATE.tmdbCache[cacheKey];
+                    const textToTranslate = (tmdbData && tmdbData.overview) ? tmdbData.overview : (movie.overview || '');
+                    
+                    if (textToTranslate && (!tmdbData || !tmdbData.translationPromise)) {
+                        if (!STATE.tmdbCache[cacheKey]) STATE.tmdbCache[cacheKey] = {};
+                        STATE.tmdbCache[cacheKey].translationPromise = API.translateTextRaw(textToTranslate).then(translated => {
+                            STATE.tmdbCache[cacheKey].overview_tr = translated;
+                            
+                            const modal = document.getElementById('hologram-modal');
+                            if (modal && !modal.classList.contains('hidden')) {
+                                const titleEl = modal.querySelector('.hologram-modal__title');
+                                if (titleEl && titleEl.textContent === movie.title) {
+                                    const synopsisEl = modal.querySelector('.hologram-modal__synopsis');
+                                    if (synopsisEl && synopsisEl.innerHTML.includes('Yapay Zeka çevirisi')) {
+                                        synopsisEl.innerHTML = translated;
+                                    }
+                                }
+                            }
+                        });
+                    }
 
-            HomeRenderer.render(recommendations);
+                    if (posterURL) {
+                        return new Promise(resolve => {
+                            const img = new Image();
+                            img.onload = resolve;
+                            img.onerror = resolve;
+                            img.src = posterURL;
+                        });
+                    }
+                }));
+                if (i + BATCH_SIZE < recommendations.length) {
+                    await new Promise(r => setTimeout(r, 150));
+                }
+            }
+
+            // Veri kalitesi düşük önerileri ve mükerrer (kopya) TMDB sonuçlarını filtrele
+            const seenTmdbIds = new Set();
             
+            const validRecommendations = recommendations.filter(movie => {
+                const cacheKey = movie.title.toLowerCase();
+                const tmdbData = STATE.tmdbCache[cacheKey];
+                
+                if (!MovieValidator.isValid(movie, tmdbData)) return false;
+                
+                // Aynı TMDB ID'ye (aynı filme) sahip birden fazla kayıt varsa, sadece ilkini tut.
+                if (tmdbData && tmdbData.id) {
+                    if (seenTmdbIds.has(tmdbData.id)) {
+                        return false;
+                    }
+                    seenTmdbIds.add(tmdbData.id);
+                }
+                
+                return true;
+            });
+            STATE.currentRecommendations = validRecommendations;
+
+            // Wait for at least the minimum transition time
+            await minTransitionTime;
+
+            HomeRenderer.render(validRecommendations);
             ViewManager.showHome();
-            
             HomeRenderer.animateCards();
 
-            // Initialize Lucide icons in home view
             if (typeof lucide !== 'undefined') {
                 lucide.createIcons();
             }
@@ -1132,60 +1298,30 @@
             
             // Canlı Çeviri (Live Translation)
             const translateSynopsis = async (text) => {
-                // Eğer içinde Türkçe'ye has harfler (ş, ğ, ı, ö, ç, ü) varsa zaten Türkçedir, çevirme.
                 if (text === 'Bu film için özet bulunamadı.' || text.match(/[ğüşıöçĞÜŞİÖÇ]/)) {
                     synopsis.textContent = text;
                     return;
                 }
-                
-                // Eğer önceki önbellekten limit hatası gelmişse orijinal İngilizce özete (veri tabanına) dön
                 if (text.includes("QUERY LENGTH LIMIT")) {
                     text = movie.overview || text;
                 }
                 
+                if (tmdbData && tmdbData.overview_tr) {
+                    synopsis.innerHTML = tmdbData.overview_tr;
+                    return;
+                }
+                
+                if (tmdbData && tmdbData.translationPromise) {
+                    synopsis.innerHTML = '<span style="color: var(--ag-accent);"><i data-lucide="loader" class="spin"></i> Yapay Zeka çevirisi yapılıyor...</span>';
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                    return; // Promise then bloğunda güncellenecek
+                }
+                
                 synopsis.innerHTML = '<span style="color: var(--ag-accent);"><i data-lucide="loader" class="spin"></i> Yapay Zeka çevirisi yapılıyor...</span>';
                 if (typeof lucide !== 'undefined') lucide.createIcons();
-
-                try {
-                    // MyMemory API 500 karakter sınırı yüzünden metni güvenli cümle parçalarına bölüyoruz
-                    const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
-                    const chunks = [];
-                    let currentChunk = '';
-                    
-                    for (const sentence of sentences) {
-                        // 450 karaktere kadar birleştir, sınırı aşarsa yeni bloğa geç
-                        if (encodeURIComponent(currentChunk + ' ' + sentence).length > 450) {
-                            if (currentChunk) chunks.push(currentChunk.trim());
-                            currentChunk = sentence;
-                        } else {
-                            currentChunk += (currentChunk ? ' ' : '') + sentence;
-                        }
-                    }
-                    if (currentChunk) chunks.push(currentChunk.trim());
-
-                    let finalTranslatedText = '';
-                    
-                    for (const chunk of chunks) {
-                        if (!chunk) continue;
-                        const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(chunk)}&langpair=en|tr`);
-                        const data = await res.json();
-                        
-                        if (data && data.responseData && data.responseData.translatedText) {
-                            const translated = data.responseData.translatedText;
-                            if (!translated.includes("QUERY LENGTH LIMIT") && !translated.includes("MYMEMORY")) {
-                                finalTranslatedText += translated + ' ';
-                            } else {
-                                finalTranslatedText += chunk + ' ';
-                            }
-                        } else {
-                            finalTranslatedText += chunk + ' '; // Hata olursa orijinalini bas
-                        }
-                    }
-                    
-                    synopsis.textContent = finalTranslatedText.trim() || text;
-                } catch (e) {
-                    synopsis.textContent = text;
-                }
+                
+                const translated = await API.translateTextRaw(text);
+                synopsis.innerHTML = translated;
             };
             
             translateSynopsis(finalSynopsis);
@@ -1210,11 +1346,14 @@
                     btn.addEventListener('click', (e) => {
                         if (!STATE.currentRecommendations) return;
                         
+                        // Zaten aktif olan butona tıklandıysa hiçbir şey yapma
+                        if (e.currentTarget.classList.contains('active')) return;
+                        
                         // Aktif buton stilini değiştir
                         buttons.forEach(b => b.classList.remove('active'));
-                        e.target.classList.add('active');
+                        e.currentTarget.classList.add('active');
                         
-                        const sortBy = e.target.dataset.sort;
+                        const sortBy = e.currentTarget.dataset.sort;
                         let sortedMovies = [...STATE.currentRecommendations];
                         
                         if (sortBy === 'rating') {

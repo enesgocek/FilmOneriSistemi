@@ -206,6 +206,27 @@ async def add_security_headers(request: Request, call_next):
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return response
 
+# 3. Backend Translation Proxy (Google Translate API)
+@app.post("/api/translate")
+async def translate_api(request: Request):
+    import urllib.request
+    import urllib.parse
+    import json
+    try:
+        body = await request.json()
+        q = body.get("q", "")
+        if not q:
+            return {"translatedText": ""}
+        url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=tr&dt=t"
+        data = urllib.parse.urlencode({'q': q}).encode('utf-8')
+        req = urllib.request.Request(url, data=data, headers={'User-Agent': 'Mozilla/5.0'})
+        res = urllib.request.urlopen(req, timeout=5)
+        resp_data = json.loads(res.read())
+        translated = "".join([x[0] for x in resp_data[0] if x[0]])
+        return {"translatedText": translated}
+    except Exception:
+        return {"translatedText": body.get("q", "") if 'body' in locals() else ""}
+
 # Ensure static directory exists
 os.makedirs("static", exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
