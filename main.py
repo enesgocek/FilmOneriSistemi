@@ -217,14 +217,22 @@ async def translate_api(request: Request):
         q = body.get("q", "")
         if not q:
             return {"translatedText": ""}
-        url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=tr&dt=t"
-        data = urllib.parse.urlencode({'q': q}).encode('utf-8')
-        req = urllib.request.Request(url, data=data, headers={'User-Agent': 'Mozilla/5.0'})
+        
+        url = "https://translate.google.com/m?sl=auto&tl=tr&q=" + urllib.parse.quote(q)
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
         res = urllib.request.urlopen(req, timeout=5)
-        resp_data = json.loads(res.read())
-        translated = "".join([x[0] for x in resp_data[0] if x[0]])
+        html = res.read().decode('utf-8')
+        
+        try:
+            translated = html.split('<div class="result-container">')[1].split('</div>')[0]
+            import html as html_parser
+            translated = html_parser.unescape(translated)
+        except Exception:
+            translated = q
+            
         return {"translatedText": translated}
-    except Exception:
+    except Exception as e:
+        print(f"Translation Error: {e}")
         return {"translatedText": body.get("q", "") if 'body' in locals() else ""}
 
 # Ensure static directory exists

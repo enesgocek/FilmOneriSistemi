@@ -11,7 +11,21 @@ CineFlow, modern bir 3 Boyutlu (3D) web arayüzüne ve yapay zeka tabanlı (Vekt
 <img width="1536" height="691" alt="Screenshot 2026-07-31 183249" src="https://github.com/user-attachments/assets/b296d265-593c-42a1-9409-6b9b6aee66ca" />
 <img width="1536" height="692" alt="Screenshot 2026-07-31 183344" src="https://github.com/user-attachments/assets/61ba0a43-e043-46f3-bccb-f526ba3bf2e5" />
 
+## ⚙️ Veri Mühendisliği ve Makine Öğrenmesi (Data Pipeline)
 
+Uygulamanın arka planında, kullanıcı tavsiyelerini ve içerik benzerliklerini milisaniyeler içinde hesaplayabilmek için iki farklı veri işleme hattı (Pipeline) kurulmuştur:
+
+### 1. İşbirlikçi Filtreleme (Collaborative Filtering) - Büyük Veri Mimarisi
+Kullanıcıların geçmiş izleme alışkanlıkları ve ortak puanlama davranışları üzerinden kişiselleştirilmiş film önerilerinin oluşturulduğu aşamadır.
+
+- **Teknolojiler:** Google Cloud Storage, Google Cloud Dataproc, Apache Spark (PySpark).
+- **Süreç:** Devasa boyuttaki ham veriler Google Cloud Storage bucket'larına aktarılmış, ardından Dataproc üzerinde ayağa kaldırılan kümeler (cluster) aracılığıyla PySpark kullanılarak dağıtık veri işleme gerçekleştirilmiştir. Model eğitimi sonucunda her kullanıcı için en iyi 10 film tavsiyesi önceden hesaplanarak dışa aktarılmıştır.
+
+### 2. İçerik Temelli Filtreleme (Content-Based) - NLP ve Vektörizasyon
+Filmlerin sadece türlerine göre değil, doğrudan işledikleri konulara ve hikaye temalarına göre eşleştirilmesini sağlayan Doğal Dil İşleme (NLP) aşamasıdır.
+
+- **Teknolojiler:** Kaggle (T4 GPU), TMDB API, Hugging Face Transformers (all-MiniLM-L6-v2), PyTorch, Asenkron Python (Asyncio).
+- **Süreç:** TMDB API limitlerine takılmamak için özel bir "Batching & Sleep" algoritması yazılarak 56.819 filmin özeti eksiksiz olarak çekilmiştir. Kaggle GPU ortamında bu metinler, dil modeli aracılığıyla 384 boyutlu matematiksel vektörlere (embeddings) dönüştürülmüş ve Kosinüs Benzerliği (Cosine Similarity) hesaplamaları için optimize edilmiş bir matris olarak uygulamaya entegre edilmiştir.
 
 ## 🌟 Özellikler
 
