@@ -1,32 +1,85 @@
-# Gizli Dosyalar
+# ==========================================================
+# 1. Gizli Dosyalar, API Anahtarları ve Kimlik Bilgileri
+# ==========================================================
 .env
 .env.*
+*.env
+!.env.example
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+secrets.*
+credentials.*
 
-# Python
+# ==========================================================
+# 2. Python, Derleme Çıktıları ve Sanal Ortamlar (Virtual Env)
+# ==========================================================
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
+.Python
 venv/
 env/
 .venv/
+ENV/
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
 
-# Veri Dosyaları (Büyük ve statik dosyalar github'a yüklenmez)
+# ==========================================================
+# 3. Büyük Veri Dosyaları ve Yerel Veritabanları
+# (GitHub 100 MB dosya boyutu sınırını aşan statik matrisler)
+# ==========================================================
 data/
 *.pkl
+*.pickle
 *.csv
+*.parquet
+*.h5
+*.hdf5
+*.db
+*.sqlite
+*.sqlite3
 
-# İşletim Sistemi Kalıntıları
-.DS_Store
-Thumbs.db
-
-# IDE ve Yapay Zeka Ajanları Kalıntıları
+# ==========================================================
+# 4. IDE, Editör ve Yapay Zeka (AI Agent) Kalıntıları
+# ==========================================================
 .vscode/
 .idea/
+*.swp
+*.swo
 .gemini/
+.agent/
 .agents/
+.claude/
+.cursor/
+.windsurf/
+.cursorrules
 skills/
 SKILL.md
+CLAUDE.md
+AGENTS.md
 
-# Diger
+# ==========================================================
+# 5. İşletim Sistemi, Önbellek ve Log Dosyaları
+# ==========================================================
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.log
+logs/
+tmp/
+temp/
+
+# ==========================================================
+# 6. Dahili Yük / Stres Testi Betikleri
+# ==========================================================
 stress_test.py

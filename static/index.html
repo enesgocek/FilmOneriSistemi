@@ -2,40 +2,57 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <!-- SEO & PWA -->
     <meta name="description" content="CineFlow — Yapay zeka destekli elit film öneri motoru. Zevklerinize göre kişiselleştirilmiş 3 Boyutlu bir sinema deneyimi yaşayın.">
+    <!-- MOBILE: Tarayıcı chrome rengi mobil UX için önemli -->
+    <meta name="theme-color" content="#06060f">
     <title>CineFlow — Sinematik Evrenini Keşfet</title>
 
-    <!-- Fonts -->
+    <!-- Fonts: preconnect + font-display=swap ile FOIT önlenir -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet"></noscript>
 
     <!-- GSAP -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"
+        integrity="sha384-g4NTh/Iv5PPU4xPyhEWqPcwtNXOvdaDI8LLnyYfyNZOjKJeYQyjzQ9X5275eBjpt" crossorigin="anonymous" defer></script>
 
     <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
+    <script src="https://unpkg.com/lucide@1.74.0/dist/umd/lucide.min.js"
+        integrity="sha384-CL9+T3+HML21QmglXUL/5Xz6WeLjKsyTNF/LJEjSpP2VEKXsRXojDY1O/4HzsEJK" crossorigin="anonymous" defer></script>
 
     <!-- Styles -->
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/style.css?v=discovery-mix-1">
 </head>
 <body>
 
     <!-- ============================================
          GLOBAL NAVIGATION BAR
          ============================================ -->
-    <nav id="main-nav" class="main-nav">
+    <nav id="main-nav" class="main-nav" aria-label="Ana menü">
         <div class="nav__container">
-            <a href="#" class="nav__brand">
+            <a href="#home-view" class="nav__brand" data-view="home-view">
                 <i data-lucide="film" width="24" height="24"></i>
                 CineFlow
             </a>
             <ul class="nav__links">
-                <li><a href="#" class="nav__link active">Öneriler</a></li>
+                <li><a href="#home-view" class="nav__link active" data-view="home-view" aria-current="page">Öneriler</a></li>
+                <li><a href="#catalog-view" class="nav__link" data-view="catalog-view">Tüm Filmler</a></li>
             </ul>
         </div>
     </nav>
+
+    <details id="summary-language" class="summary-language">
+        <summary aria-label="Özet dili: Türkçe" aria-controls="summary-language-options">
+            <span id="summary-language-code" aria-hidden="true">TR</span>
+        </summary>
+        <div class="summary-language__menu">
+            <p>Özet dili</p>
+            <div id="summary-language-options" class="summary-language__options"></div>
+        </div>
+    </details>
 
     <!-- Ambient Background -->
     <div class="ambient-bg" aria-hidden="true">
@@ -73,6 +90,21 @@
         </div>
     </div>
 
+    <section id="genre-view" class="view onboarding" aria-labelledby="genre-title">
+        <div class="onboarding__container">
+            <h1 id="genre-title" class="onboarding__title" tabindex="-1">Film Türlerini Seç</h1>
+            <p class="onboarding__subtitle">İstediğin kadar tür seçebilirsin. Seçim yapmazsan tüm türler gösterilir.</p>
+            <form id="genre-form">
+                <div id="genre-choices" class="year-grid genre-grid"></div>
+                <p id="genre-status" class="genre-status" role="status"></p>
+                <div class="genre-actions">
+                    <button id="btn-back-to-years" class="ag-filter-btn" type="button">Yıllara dön</button>
+                    <button id="btn-start-cards" class="ag-filter-btn active" type="submit">Kartları göster</button>
+                </div>
+            </form>
+        </div>
+    </section>
+
     <!-- ============================================
          VIEW 1: COLD START — Tinder Swipe Cards
          ============================================ -->
@@ -105,22 +137,15 @@
         </div>
     </div>
 
-    <!-- ============================================
-         HOLOGRAM MODAL
-         ============================================ -->
-    <div id="transition-view" class="view transition-view">
-        <!-- 3D Cinematic Loader -->
-        <div class="cinematic-loader">
-            <div class="loader-ring loader-ring--1"></div>
-            <div class="loader-ring loader-ring--2"></div>
-            <div class="loader-ring loader-ring--3"></div>
-            <div class="loader-core">
-                <i data-lucide="film" width="28" height="28"></i>
-            </div>
+    <section id="transition-view" class="view transition-view" aria-labelledby="transition-title">
+        <div class="transition-view__content">
+            <h2 id="transition-title" class="transition-view__title">Önerilen filmler yükleniyor</h2>
+            <p id="transition-status" class="transition-view__subtitle" role="status">Seçimlerine uygun filmler bulunuyor.</p>
         </div>
-        <h2 class="transition-view__title">Harika seçimler! 🎉</h2>
-        <p class="transition-view__subtitle">Senin için öneriler hazırlanıyor...</p>
-    </div>
+        <div class="transition-view__track" aria-hidden="true">
+            <div class="transition-view__fill"></div>
+        </div>
+    </section>
 
     <!-- ============================================
          VIEW 3: HOME — Recommendations
@@ -131,17 +156,21 @@
         <div class="home-header">
             <p class="home-header__brand">CineFlow</p>
             <h1 class="home-header__title">Sana Özel Öneriler</h1>
-            <p class="home-header__subtitle">Beğenilerine göre seçilmiş filmler</p>
+            <p class="home-header__subtitle">Film seçimlerinle şekillenen bir keşif listesi</p>
         </div>
 
         <!-- Controls (Sorting) -->
         <div class="home-controls">
             <span class="home-controls__label">Sırala:</span>
             <div class="ag-filter-group">
-                <button class="ag-filter-btn active" data-sort="similarity">Yapay Zeka (Benzerlik)</button>
-                <button class="ag-filter-btn" data-sort="rating">TMDB Puanı (Rating)</button>
+                <button class="ag-filter-btn active" data-sort="similarity" type="button">Sana özel</button>
+                <button class="ag-filter-btn" data-sort="rating" type="button">TMDB puanı</button>
             </div>
+            <button id="btn-remix" class="ag-filter-btn" type="button">
+                <i data-lucide="shuffle" width="16" height="16" aria-hidden="true"></i> Yeni karışım
+            </button>
         </div>
+        <p id="recommendation-status" class="recommendation-status" role="status" hidden></p>
 
         <!-- Movie Grid -->
         <div id="movie-grid" class="movie-grid">
@@ -163,11 +192,98 @@
             <div class="status-item">
                 <span id="status-movies">Film Sayısı: —</span>
             </div>
-            <div class="status-item">
-                <span id="status-users">Kullanıcı Sayısı: —</span>
+            <div class="status-item" hidden>
+                <span id="status-users"></span>
             </div>
         </div>
     </div>
+
+    <section id="catalog-view" class="view home-view catalog-view" aria-labelledby="catalog-title">
+        <div class="home-header catalog-header">
+            <p class="home-header__brand">CineFlow</p>
+            <h1 id="catalog-title" class="home-header__title">Tüm Filmler</h1>
+            <p class="home-header__subtitle">Sinema arşivini keşfet. Bir sonraki hikâyeni bul.</p>
+        </div>
+
+        <div class="catalog-toolbar">
+            <form id="catalog-search-form" class="catalog-search" role="search">
+                <i data-lucide="search" width="20" height="20" aria-hidden="true"></i>
+                <label for="catalog-search" class="sr-only">Film adına göre ara</label>
+                <input id="catalog-search" type="search" placeholder="Bir film adı ara..." maxlength="200" autocomplete="off" enterkeyhint="search" aria-controls="catalog-grid">
+                <button id="catalog-clear" class="catalog-clear" type="button" aria-label="Aramayı temizle" hidden>
+                    <i data-lucide="x" width="18" height="18" aria-hidden="true"></i>
+                </button>
+                <button class="catalog-search__submit" type="submit">Ara</button>
+            </form>
+
+            <button id="catalog-filter-button" class="catalog-filter-trigger" type="button"
+                aria-haspopup="dialog" aria-expanded="false" aria-controls="catalog-filter-dialog">
+                <i data-lucide="sliders-horizontal" width="18" height="18" aria-hidden="true"></i>
+                <span>Filtrele</span>
+                <span id="catalog-filter-count" class="catalog-filter-count" hidden></span>
+            </button>
+        </div>
+
+        <div id="catalog-active-filters" class="catalog-active-filters" aria-label="Uygulanan filtreler" hidden></div>
+
+        <div class="catalog-summary">
+            <p id="catalog-status" role="status" aria-live="polite" aria-atomic="true"></p>
+            <span class="catalog-page-size">Sayfa başına 30 film</span>
+        </div>
+
+        <div id="catalog-grid" class="movie-grid catalog-grid" aria-busy="false"></div>
+
+        <nav id="catalog-pagination" class="catalog-pagination" aria-label="Film sayfaları" hidden>
+            <button id="catalog-prev" class="catalog-page-btn" type="button" aria-label="Önceki sayfa">
+                <i data-lucide="chevron-left" width="18" height="18" aria-hidden="true"></i><span>Önceki</span>
+            </button>
+            <div id="catalog-pages" class="catalog-pages"></div>
+            <button id="catalog-next" class="catalog-page-btn" type="button" aria-label="Sonraki sayfa">
+                <span>Sonraki</span><i data-lucide="chevron-right" width="18" height="18" aria-hidden="true"></i>
+            </button>
+        </nav>
+    </section>
+
+    <div id="catalog-filter-backdrop" class="catalog-filter-backdrop" hidden></div>
+    <dialog id="catalog-filter-dialog" class="catalog-filter-dialog" aria-labelledby="catalog-filter-title">
+        <form id="catalog-filter-form" class="catalog-filter-panel">
+            <header class="catalog-filter-header">
+                <h2 id="catalog-filter-title">Filtreler</h2>
+                <button id="catalog-filter-close" class="catalog-filter-close" type="button" aria-label="Filtreleri kapat" autofocus>
+                    <i data-lucide="x" width="20" height="20" aria-hidden="true"></i>
+                </button>
+            </header>
+            <div class="catalog-filter-fields">
+                <fieldset>
+                    <legend>Sıralama</legend>
+                    <div class="catalog-sort-options" data-filter-options="sort"></div>
+                </fieldset>
+                <fieldset>
+                    <legend>Tür</legend>
+                    <div class="catalog-genre-options" data-filter-options="genre"></div>
+                </fieldset>
+                <fieldset data-requires-ratings>
+                    <legend>Minimum TMDB puanı</legend>
+                    <div class="catalog-score-options" data-filter-options="min_rating"></div>
+                </fieldset>
+                <p id="catalog-rating-unavailable" class="catalog-filter-note" hidden>Puan dizini henüz yüklenmedi.</p>
+                <label class="catalog-year-field">
+                    <span>Çıkış yılı</span>
+                    <span class="catalog-year-input">
+                        <i data-lucide="calendar-days" width="17" height="17" aria-hidden="true"></i>
+                        <input name="year" type="number" inputmode="numeric" min="1800" max="2100" step="1" placeholder="Tüm yıllar">
+                    </span>
+                </label>
+            </div>
+            <footer class="catalog-filter-actions">
+                <button id="catalog-filter-reset" class="catalog-filter-reset" type="button">Temizle</button>
+                <button class="catalog-filter-apply" type="submit">
+                    Sonuçları göster
+                    <i data-lucide="arrow-right" width="17" height="17" aria-hidden="true"></i>
+                </button>
+            </footer>
+        </form>
+    </dialog>
 
     <!-- ============================================
          HOLOGRAM MODAL (Film Detayları)
@@ -180,13 +296,17 @@
                 <img class="hologram-modal__poster" src="" alt="Poster" />
                 <div class="hologram-modal__info">
                     <h2 class="hologram-modal__title"></h2>
-                    <p class="hologram-modal__synopsis"></p>
+                    <div class="hologram-modal__genres" style="display: flex; flex-wrap: wrap; gap: var(--space-xs); margin-bottom: var(--space-xs);"></div>
+                    <div class="film-detail-score"><span aria-hidden="true">★</span> TMDB <span class="film-detail-rating">—</span></div>
+                    <div id="hologram-recommendation-reasons" class="recommendation-reasons" hidden></div>
+                    <div class="swipe-card__divider" style="margin: var(--space-md) 0;"></div>
+                    <p class="hologram-modal__synopsis" dir="auto" aria-live="polite"></p>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- App Script -->
-    <script src="/static/app.js" defer></script>
+    <script src="/static/app.js?v=archive-synopsis-1" defer></script>
 </body>
 </html>

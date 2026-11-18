@@ -3,8 +3,9 @@
    Glassmorphism + 3D Depth + Floating Elements
    ========================================================================== */
 
-/* Google Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap');
+/* PERF: Google Fonts @import buradan kaldırıldı.
+   index.html'de media="print" onload trick ile non-blocking olarak yükleniyor.
+   Çifte @import ağ isteğini önler. */
 
 /* ============================================
    Design Tokens
@@ -91,7 +92,10 @@ body {
     font-family: var(--font-primary);
     background: var(--ag-bg-deep);
     color: var(--ag-text-primary);
-    min-height: 100vh;
+    /* iOS FIX: 100vh URL bar'da zıplamasın diye --vh değişkeni kullanılıyor.
+       JS'de setViewportHeight() her visualViewport resize'da günceller.
+       --vh tanımlı değilse (eski tarayıcı fallback) 100vh kullanılır. */
+    min-height: calc(var(--vh, 1vh) * 100);
     overflow-x: hidden;
     line-height: 1.6;
 }
@@ -117,6 +121,7 @@ body {
     max-width: 1200px;
     margin: 0 auto;
     padding: var(--space-md) var(--space-xl);
+    padding-right: calc(var(--space-xl) + 54px);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -160,6 +165,113 @@ body {
     color: var(--ag-accent-glow);
 }
 
+.nav__link:focus-visible,
+.movie-card:focus-visible {
+    outline: 2px solid var(--ag-accent-glow);
+    outline-offset: 5px;
+}
+
+.summary-language {
+    position: fixed;
+    top: 13px;
+    right: 16px;
+    top: max(13px, env(safe-area-inset-top));
+    right: max(16px, calc((100% - 1200px) / 2 + 24px), env(safe-area-inset-right));
+    z-index: 10000;
+}
+
+.summary-language summary {
+    display: grid;
+    width: 40px;
+    height: 40px;
+    place-items: center;
+    list-style: none;
+    border: 1px solid var(--ag-glass-border);
+    border-radius: 50%;
+    background: #18152b;
+    color: var(--ag-text-primary);
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color 0.2s, border-color 0.2s;
+}
+
+.summary-language summary::-webkit-details-marker { display: none; }
+.summary-language[open] summary,
+.summary-language summary:hover {
+    border-color: var(--ag-accent-glow);
+    background: #272045;
+}
+
+.summary-language summary:focus-visible,
+.summary-language__options button:focus-visible {
+    outline: 2px solid var(--ag-accent-glow);
+    outline-offset: 2px;
+}
+
+.summary-language__menu {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 8px);
+    width: min(260px, calc(100vw - 32px));
+    max-height: calc(100vh - 70px);
+    overflow: auto;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--ag-glass-border);
+    background: #151326;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+    padding: 12px;
+}
+
+.summary-language__menu p {
+    margin: 0 0 8px;
+    color: var(--ag-text-secondary);
+    font-size: 0.82rem;
+}
+
+.summary-language__options {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px;
+}
+
+.summary-language__options button {
+    min-height: 36px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    padding: 4px 6px;
+    background: transparent;
+    color: var(--ag-text-primary);
+    font: inherit;
+    font-size: 0.82rem;
+    cursor: pointer;
+}
+
+.summary-language__options button:hover,
+.summary-language__options button[aria-pressed="true"] {
+    background: #28203f;
+    border-color: var(--ag-glass-border);
+}
+
+.summary-language__options button[aria-pressed="true"] {
+    color: var(--ag-accent-glow);
+}
+
+.film-detail-score {
+    width: fit-content;
+    margin-block: 8px 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(250, 204, 21, 0.24);
+    background: rgba(250, 204, 21, 0.08);
+    color: #facc15;
+    font-size: 0.76rem;
+    font-weight: 700;
+}
+
 /* ============================================
    Background Ambient Layer
    ============================================ */
@@ -174,10 +286,10 @@ body {
 .ambient-orb {
     position: absolute;
     border-radius: 50%;
-    filter: blur(100px);
     opacity: 0.25;
     animation: orbFloat 20s ease-in-out infinite;
-    transform: translateZ(0);
+    /* PERF: translateZ(0) → GPU'ya composite layer hint (compositing trigger) */
+    transform: translate3d(0, 0, 0);
     will-change: transform;
 }
 
@@ -203,18 +315,23 @@ body {
     width: 350px;
     height: 350px;
     background: radial-gradient(circle, var(--ag-accent-cyan) 0%, transparent 70%);
+    /* FIX: translate(-50%,-50%) ve orbFloat transform çakışmasını gidermek için
+       top/left yerine margin kullanıyoruz → animasyon transform'u temiz kalıyor */
     top: 50%;
     left: 50%;
-    transform: translate(-50%, -50%);
+    margin-top: -175px;  /* height/2 */
+    margin-left: -175px; /* width/2 */
     animation-delay: -14s;
     opacity: 0.12;
 }
 
 @keyframes orbFloat {
-    0%, 100% { transform: translate(0, 0) scale(1); }
-    25% { transform: translate(30px, -40px) scale(1.05); }
-    50% { transform: translate(-20px, 20px) scale(0.95); }
-    75% { transform: translate(40px, 30px) scale(1.08); }
+    /* PERF: scale() kaldırıldı — layout thrashing önlendi.
+       Sadece translate3d kullanmak GPU compositor layer'ını korur. */
+    0%, 100% { transform: translate3d(0, 0, 0); }
+    25%       { transform: translate3d(30px, -40px, 0); }
+    50%       { transform: translate3d(-20px, 20px, 0); }
+    75%       { transform: translate3d(40px, 30px, 0); }
 }
 
 /* Subtle grain texture overlay */
@@ -232,7 +349,8 @@ body {
    ============================================ */
 .view {
     display: none;
-    min-height: 100vh;
+    /* iOS FIX: 100vh yerine --vh değişkeni ile URL bar jump önleniyor */
+    min-height: calc(var(--vh, 1vh) * 100);
     position: relative;
     z-index: 1;
 }
@@ -298,9 +416,44 @@ body {
     inset: 0;
     border-radius: var(--radius-xl);
     cursor: grab;
-    touch-action: pan-y;
+    touch-action: none !important; /* Prevent mobile scroll/zoom conflicts */
+    /* PERF + FIX: perspective card-stack'ten miras alınıyor.
+       İç içe (nested) perspective mobilde derinlik hesaplamasını
+       bozar ve Safari'de titreme yaratır. Kaldırıldı. */
+}
+
+/* Prepare only cards that are moving or immediately available to swipe. */
+.card-stack.is-dealing .swipe-card,
+.swipe-card--front,
+.swipe-card--behind-1,
+.swipe-card--behind-2 {
     will-change: transform, opacity;
-    perspective: 1500px;
+}
+
+/* The deal exposes fronts only. Restore the real 3D faces before interaction. */
+.card-stack.is-dealing .swipe-card__inner {
+    transform-style: flat;
+}
+
+.card-stack.is-dealing .swipe-card__back-face {
+    visibility: hidden;
+}
+
+.card-stack:not(.is-dealing) .swipe-card--hidden-deck {
+    display: none;
+}
+
+/* Hardware Accelerated Darkness Overlay instead of filter: brightness */
+.swipe-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: #000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s ease;
+    z-index: 10;
 }
 
 .swipe-card:active {
@@ -318,26 +471,51 @@ body {
     position: absolute;
     width: 100%;
     height: 100%;
+    /* FIX Safari: Her iki yüze tutarlı backface-visibility uygulandı.
+       Eksik prefix Safari'de flip sırasında ghost görüntüye yol açar. */
     -webkit-backface-visibility: hidden;
     backface-visibility: hidden;
     border-radius: var(--radius-xl);
     overflow: hidden;
     box-shadow: var(--ag-shadow-card);
+    /* Safari: transform 3D stacking context'i zorla */
+    -webkit-transform: translate3d(0, 0, 0);
+    transform: translate3d(0, 0, 0);
 }
 
 .swipe-card__front-face {
     background: var(--ag-bg-mid);
+    /* FIX Safari: front face için açıkça rotateY(0) belirt.
+       Bu olmadan Safari ön yüzü bazen yanlış render eder. */
+    -webkit-transform: rotateY(0deg);
+    transform: rotateY(0deg);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
 }
 
 .swipe-card__back-face {
-    background: var(--ag-bg-deep);
-    border: 1px solid var(--ag-glass-border);
-    transform: rotateY(180deg);
-    padding: var(--space-xl);
+    /* GÖRSEL FIX: Önceki arka yüz %45-50 şeffaflıkla tamamen saydam görünüyordu.
+       Yeni tasarım: Tam opak koyu lacivert taban + mor ışıltı katmanı.
+       backdrop-filter kaldırıldı → GPU compositor yükü sıfırlandı,
+       aynı zamanda arka plan görünmez olduğundan blur'a da gerek kalmadı. */
+    background:
+        /* Üst katman: Köşeden yumuşak mor ışıltı */
+        radial-gradient(ellipse at top left, rgba(124, 111, 247, 0.18) 0%, transparent 60%),
+        /* Alt katman: Köşeden sıcak pembe hint */
+        radial-gradient(ellipse at bottom right, rgba(253, 121, 168, 0.10) 0%, transparent 55%),
+        /* Taban: Derin lacivert — tamamen opak */
+        linear-gradient(145deg, #0f0f1f 0%, #0a0a18 100%);
+    border: 1px solid rgba(124, 111, 247, 0.20);
+    box-shadow:
+        inset 0 0 60px rgba(124, 111, 247, 0.07),
+        inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    transform: rotateY(180deg) translateZ(1px);
+    padding: var(--space-2xl) var(--space-xl);
     display: flex;
     flex-direction: column;
     overflow-y: auto;
 }
+
 
 .swipe-card__back-face::-webkit-scrollbar { width: 4px; }
 .swipe-card__back-face::-webkit-scrollbar-track { background: transparent; }
@@ -345,23 +523,33 @@ body {
 
 .swipe-card__back-title {
     font-family: var(--font-display);
-    font-size: 1.4rem;
-    color: var(--ag-text-primary);
+    font-size: 1.5rem;
+    background: linear-gradient(90deg, #ffffff 0%, var(--ag-accent) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
     margin-bottom: var(--space-xs);
     line-height: 1.2;
 }
 
 .swipe-card__divider {
-    height: 1px;
-    background: var(--ag-glass-border);
+    width: 100%;
+    height: 2px;
+    flex-shrink: 0;
+    display: block;
+    background: linear-gradient(90deg, transparent 0%, var(--ag-accent) 50%, transparent 100%);
+    box-shadow: 0 0 10px var(--ag-accent);
     margin: var(--space-md) 0;
 }
 
 .swipe-card__synopsis {
-    font-size: 0.95rem;
-    color: var(--ag-text-secondary);
-    line-height: 1.6;
-    text-align: justify;
+    font-size: 1rem;
+    color: rgba(255, 255, 255, 0.85);
+    line-height: 1.7;
+    letter-spacing: 0.3px;
+    text-align: left;
+    font-weight: 300;
 }
 
 .swipe-card:active {
@@ -369,15 +557,23 @@ body {
 }
 
 .swipe-card--behind-1 {
-    transform: scale(0.95) translateY(12px);
-    filter: brightness(0.7);
+    /* PERF: scale() + translateY() compositor katmanının yeniden promosyonuna yol açabilir.
+       translate3d + scale3d ile GPU compositor layer sağlıklı tutulur. */
+    transform: translate3d(0, 12px, 0) scale3d(0.95, 0.95, 1);
     z-index: 1;
 }
 
+.swipe-card--behind-1::after {
+    opacity: 0.3;
+}
+
 .swipe-card--behind-2 {
-    transform: scale(0.90) translateY(24px);
-    filter: brightness(0.5);
+    transform: translate3d(0, 24px, 0) scale3d(0.90, 0.90, 1);
     z-index: 0;
+}
+
+.swipe-card--behind-2::after {
+    opacity: 0.5;
 }
 
 .swipe-card--front {
@@ -443,8 +639,11 @@ body {
     color: var(--ag-accent-glow);
     font-weight: 500;
     letter-spacing: 0.03em;
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    /* GPU FIX: backdrop-filter:blur(8px) kaldırıldı.
+       10 swipe-card × 6 pill = 60 efl i blur compositor layer'dan.
+       Bu sayı mobil Safari'nin GPU bellek limitini aşabiliyor ve
+       "kompositör bellek tükendi" hatasına yol açıyordu.
+       Pill görüntüsü background rgba ile korunuyor. */
 }
 
 /* Hide overview in cold start — poster is the focus */
@@ -470,8 +669,11 @@ body {
         font-size: 1.3rem;
     }
     .card-stack {
-        width: 280px;
-        height: 400px;
+        /* FIX Mobile: aspect-ratio + perspective iç içe hesaplama Safari'de
+           beklenmedik genişleme yaratıyordu. Explicit boyutlar daha güvenilir. */
+        width: min(280px, 82vw);
+        height: min(400px, 58vh);
+        aspect-ratio: unset;
     }
 }
 
@@ -507,6 +709,26 @@ body {
     transform: rotate(-15deg);
 }
 
+/* Hardware Accelerated Glow Effect */
+.swipe-glow {
+    position: absolute;
+    inset: -20px;
+    border-radius: calc(var(--radius-xl) + 20px);
+    z-index: -1;
+    opacity: 0;
+    pointer-events: none;
+    will-change: opacity;
+    transform: translateZ(0); /* Force GPU composite layer */
+}
+
+.swipe-glow--like {
+    background: radial-gradient(circle, var(--ag-swipe-like-glow) 0%, transparent 70%);
+}
+
+.swipe-glow--pass {
+    background: radial-gradient(circle, var(--ag-swipe-pass-glow) 0%, transparent 70%);
+}
+
 /* Action Buttons */
 .cold-start__actions {
     display: flex;
@@ -527,7 +749,10 @@ body {
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: all var(--ag-transition-smooth);
+    /* PERF: transition:all kaldırıldı. 'all' background-color gibi
+       compositor dışı property'leri de animate eder → ana thread yükü.
+       Sadece görsel olarak ilgili transform ve box-shadow tutuldu. */
+    transition: transform var(--ag-transition-smooth), box-shadow var(--ag-transition-smooth), background-color var(--ag-transition-smooth);
     color: var(--ag-text-primary);
     font-size: 1.5rem;
 }
@@ -595,97 +820,71 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: var(--space-lg);
+    gap: 26px;
+    padding: 24px 24px clamp(40px, 9vh, 96px);
     text-align: center;
-    padding: var(--space-xl);
+    background: radial-gradient(ellipse at 50% 43%, #1a1528 0%, #0e0c16 42%, #090810 76%);
 }
 
+.transition-view__content { width: 100%; max-width: 600px; }
+
 .transition-view__title {
+    color: #f4f1fc;
     font-family: var(--font-display);
-    font-size: clamp(1.3rem, 3vw, 1.8rem);
-    font-weight: 700;
-    color: var(--ag-text-primary);
+    font-size: clamp(1.9rem, 1.15rem + 3.3vw, 3.25rem);
+    font-weight: 600;
+    line-height: 1.08;
+    letter-spacing: -0.036em;
+    text-wrap: balance;
 }
 
 .transition-view__subtitle {
-    color: var(--ag-text-secondary);
-    font-size: 0.95rem;
+    max-width: 38ch;
+    margin: 12px auto 0;
+    color: #b7b0c6;
+    font-size: clamp(0.88rem, 0.83rem + 0.25vw, 1rem);
+    line-height: 1.55;
+    text-wrap: balance;
 }
 
-/* 3D Cinematic Loader */
-.cinematic-loader {
-    position: relative;
-    width: 80px;
-    height: 80px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    perspective: 800px; /* 3D derinlik hissi */
-    margin-bottom: var(--space-md);
+.transition-view__track {
+    width: min(184px, 52vw);
+    height: 4px;
+    overflow: hidden;
+    border-radius: var(--radius-full);
+    background: #322a42;
 }
 
-.loader-ring {
-    position: absolute;
-    width: 100%;
+.transition-view__fill {
     height: 100%;
-    border-radius: 50%;
-    border: 2px solid transparent;
+    overflow: hidden;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #8675d9, #c2affc);
+    transform-origin: left center;
+    transform: scaleX(0.24);
+    transition: transform 0.38s ease-out;
 }
 
-/* Dış Halka - Mor (Primary) */
-.loader-ring--1 {
-    border-top-color: var(--ag-primary);
-    border-bottom-color: var(--ag-primary);
-    animation: rotate3D_1 2s ease-in-out infinite;
-    box-shadow: 0 0 15px rgba(124, 58, 237, 0.4);
+.transition-view[data-stage="cards"] .transition-view__fill { transform: scaleX(0.62); }
+.transition-view[data-stage="ready"] .transition-view__fill { transform: scaleX(1); }
+
+.transition-view__fill::after {
+    content: '';
+    display: block;
+    width: 58%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, #f0e5ff, transparent);
+    animation: recommendation-loader 1.15s linear infinite;
 }
 
-/* Orta Halka - Pembe (Secondary) */
-.loader-ring--2 {
-    width: 80%;
-    height: 80%;
-    border-left-color: var(--ag-secondary);
-    border-right-color: var(--ag-secondary);
-    animation: rotate3D_2 2.5s ease-in-out infinite reverse;
-    box-shadow: inset 0 0 10px rgba(236, 72, 153, 0.4);
+@keyframes recommendation-loader {
+    from { transform: translateX(-105%); }
+    to { transform: translateX(175%); }
 }
 
-/* İç Halka - Camgöbeği (Accent) */
-.loader-ring--3 {
-    width: 60%;
-    height: 60%;
-    border-top-color: var(--ag-accent);
-    animation: rotate3D_3 1.5s linear infinite;
-}
-
-/* Merkez İkon - Parlayan Film */
-.loader-core {
-    position: absolute;
-    color: var(--ag-text-primary);
-    animation: pulseCore 2s ease-in-out infinite;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-@keyframes rotate3D_1 {
-    0% { transform: rotateX(35deg) rotateY(-45deg) rotateZ(0deg); }
-    100% { transform: rotateX(35deg) rotateY(-45deg) rotateZ(360deg); }
-}
-
-@keyframes rotate3D_2 {
-    0% { transform: rotateX(50deg) rotateY(10deg) rotateZ(0deg); }
-    100% { transform: rotateX(50deg) rotateY(10deg) rotateZ(360deg); }
-}
-
-@keyframes rotate3D_3 {
-    0% { transform: rotateX(15deg) rotateY(70deg) rotateZ(0deg); }
-    100% { transform: rotateX(15deg) rotateY(70deg) rotateZ(360deg); }
-}
-
-@keyframes pulseCore {
-    0%, 100% { transform: scale(0.9); opacity: 0.7; filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.4)); }
-    50% { transform: scale(1.1); opacity: 1; filter: drop-shadow(0 0 15px rgba(255, 255, 255, 0.8)); }
+@media (prefers-reduced-motion: reduce) {
+    .transition-view__fill { transition: none; }
+    .transition-view__fill::after { display: none; }
 }
 
 /* ============================================
@@ -733,9 +932,520 @@ body {
 }
 
 /* Movie Grid */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+}
+
+.catalog-header { margin-bottom: var(--space-xl); }
+
+.catalog-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    max-width: 780px;
+    margin-bottom: var(--space-xl);
+    position: relative;
+    z-index: 3;
+}
+
+.catalog-search {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    flex: 1;
+    min-width: 0;
+    padding: 8px 8px 8px 20px;
+    border: 1px solid var(--ag-glass-border);
+    border-radius: var(--radius-full);
+    background: var(--ag-glass);
+    color: var(--ag-accent-glow);
+    backdrop-filter: blur(var(--ag-glass-blur));
+    -webkit-backdrop-filter: blur(var(--ag-glass-blur));
+    transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.catalog-search:focus-within {
+    border-color: var(--ag-accent);
+    box-shadow: 0 0 24px rgba(124, 111, 247, 0.12);
+}
+
+.catalog-search > svg { flex-shrink: 0; }
+.catalog-search input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    padding: 8px 0;
+    background: transparent;
+    color: var(--ag-text-primary);
+    font: inherit;
+    font-size: 1rem;
+}
+.catalog-search input::placeholder { color: var(--ag-text-muted); }
+.catalog-search input::-webkit-search-cancel-button { -webkit-appearance: none; }
+.catalog-search__submit,
+.catalog-page-btn,
+.catalog-clear,
+.catalog-retry {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 42px;
+    border: 1px solid var(--ag-glass-border);
+    border-radius: var(--radius-full);
+    padding: 8px 16px;
+    background: var(--ag-glass);
+    color: var(--ag-text-secondary);
+    font: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+.catalog-search__submit,
+.catalog-page-btn[aria-current="page"] {
+    background: rgba(124, 111, 247, 0.18);
+    border-color: rgba(124, 111, 247, 0.35);
+    color: var(--ag-accent-glow);
+}
+.catalog-page-btn:not(:disabled):hover,
+.catalog-search__submit:hover,
+.catalog-retry:hover {
+    background: rgba(124, 111, 247, 0.24);
+    border-color: var(--ag-accent);
+    color: var(--ag-text-primary);
+}
+.catalog-page-btn:disabled { opacity: 0.35; cursor: default; }
+.catalog-clear { padding: 0; width: 32px; min-height: 32px; border: 0; background: transparent; }
+.catalog-clear:hover { color: var(--ag-text-primary); }
+.catalog-clear[hidden], .catalog-pagination[hidden] { display: none; }
+.catalog-search button:focus-visible,
+.catalog-page-btn:focus-visible,
+.catalog-retry:focus-visible {
+    outline: 2px solid var(--ag-accent-glow);
+    outline-offset: 3px;
+}
+
+.catalog-filter-trigger,
+.catalog-filter-apply,
+.catalog-filter-reset,
+.catalog-filter-close,
+.catalog-filter-chip,
+.catalog-filter-clear-all {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 1px solid transparent;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+
+.catalog-filter-trigger {
+    flex-shrink: 0;
+    min-height: 48px;
+    padding: 0 16px;
+    border-color: rgba(162, 155, 254, 0.3);
+    border-radius: 16px;
+    background: #251d3b;
+    color: #e4dfff;
+    font-size: 0.9rem;
+}
+
+.catalog-filter-trigger:hover,
+.catalog-filter-trigger[aria-expanded="true"] {
+    background: #352751;
+    border-color: #a698f8;
+}
+
+.catalog-filter-count {
+    min-width: 19px;
+    padding: 0 5px;
+    border-radius: 20px;
+    background: #bcafff;
+    color: #23163d;
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-align: center;
+}
+
+.catalog-filter-open { overflow: hidden; scrollbar-gutter: stable; }
+
+.catalog-filter-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 10001;
+    background: rgba(5, 4, 12, 0.66);
+}
+
+.catalog-filter-dialog {
+    --filter-panel-height: min(776px, calc(100vh - 36px));
+    position: fixed;
+    inset: 0;
+    z-index: 10002;
+    margin: auto clamp(16px, 3vw, 48px) auto auto;
+    width: min(476px, calc(100vw - 32px));
+    max-width: none;
+    max-height: var(--filter-panel-height);
+    padding: 0;
+    overflow: hidden;
+    border: 1px solid #473862;
+    border-radius: 24px;
+    background: linear-gradient(150deg, #291e3c, #171322 56%);
+    color: #f4efff;
+    color-scheme: dark;
+    box-shadow: 0 28px 80px #04020bbb;
+}
+
+.catalog-filter-dialog:not([open]) { display: none; }
+.catalog-filter-dialog[open] { animation: catalog-filter-in 0.19s ease-out both; }
+.catalog-filter-dialog::backdrop { background: rgba(5, 4, 12, 0.66); }
+
+@keyframes catalog-filter-in {
+    from { opacity: 0; transform: translateX(12px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+@supports (height: 100dvh) {
+    .catalog-filter-dialog { --filter-panel-height: min(776px, calc(100dvh - 36px)); }
+}
+
+.catalog-filter-panel {
+    display: flex;
+    flex-direction: column;
+    max-height: var(--filter-panel-height);
+    min-height: 0;
+}
+
+.catalog-filter-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px 14px;
+    border-bottom: 1px solid rgba(190, 168, 238, 0.15);
+}
+
+.catalog-filter-header h2 {
+    font: 700 1.55rem/1.1 var(--font-display);
+    letter-spacing: -0.025em;
+}
+
+.catalog-filter-close {
+    width: 38px;
+    height: 38px;
+    border-color: #4a3b60;
+    border-radius: 12px;
+    background: #302545;
+    color: #e1d5fa;
+}
+
+.catalog-filter-close:hover,
+.catalog-filter-reset:hover { background: #43325e; color: #fff; }
+
+.catalog-filter-fields {
+    display: grid;
+    gap: 19px;
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+    padding: 18px 20px;
+    scrollbar-color: #5a4778 #1c1728;
+    scrollbar-width: thin;
+}
+
+.catalog-filter-fields fieldset {
+    min-width: 0;
+    margin: 0;
+    border: 0;
+    padding: 0;
+}
+
+.catalog-filter-fields legend,
+.catalog-year-field > span:first-child {
+    margin-bottom: 8px;
+    color: #f0e8ff;
+    font-size: 0.86rem;
+    font-weight: 700;
+}
+
+.catalog-sort-options {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+}
+
+.catalog-genre-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.catalog-score-options {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 5px;
+}
+
+.catalog-filter-choice { position: relative; min-width: 0; }
+
+.catalog-filter-choice input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+}
+
+.catalog-filter-choice__text {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-height: 36px;
+    padding: 5px 10px;
+    border: 1px solid #423453;
+    border-radius: 12px;
+    background: #21192f;
+    color: #d7cbe9;
+    cursor: pointer;
+    font-size: 0.78rem;
+    font-weight: 550;
+    transition: background-color 0.18s ease, border-color 0.18s ease;
+}
+
+.catalog-sort-options .catalog-filter-choice__text {
+    justify-content: flex-start;
+    min-height: 42px;
+    text-align: left;
+}
+
+.catalog-sort-options svg {
+    flex-shrink: 0;
+    width: 15px;
+    height: 15px;
+    color: #c0aaff;
+}
+
+.catalog-genre-options .catalog-filter-choice__text { border-radius: 99px; }
+.catalog-score-options .catalog-filter-choice__text { padding-inline: 2px; font-variant-numeric: tabular-nums; }
+
+.catalog-filter-choice:hover input:not(:disabled) + span { border-color: #8d74c1; }
+.catalog-filter-choice input:checked + span {
+    border-color: #a992fc;
+    background: #503c77;
+    color: #fff;
+    box-shadow: inset 0 0 0 1px rgba(201, 181, 255, 0.12);
+}
+
+.catalog-filter-choice input:disabled + span { opacity: 0.44; cursor: default; }
+.catalog-filter-note { color: #c9b9e2; font-size: 0.78rem; margin-top: -12px; }
+
+.catalog-year-field { display: grid; }
+.catalog-year-input {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-height: 42px;
+    width: min(100%, 190px);
+    padding: 0 10px;
+    border: 1px solid #4a3b60;
+    border-radius: 12px;
+    background: #21192f;
+    color: #bda7fb;
+}
+
+.catalog-year-input input {
+    min-width: 0;
+    width: 100%;
+    border: 0;
+    padding: 8px 0;
+    background: transparent;
+    color: #f4efff;
+    font: inherit;
+    font-size: 0.85rem;
+    outline: 0;
+}
+
+.catalog-year-input:focus-within { border-color: #b49cf7; }
+.catalog-year-input input::placeholder { color: #b1a1ca; }
+
+.catalog-filter-actions {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 10px;
+    padding: 12px 20px 14px;
+    border-top: 1px solid #423453;
+    background: #1a1527;
+}
+
+.catalog-filter-apply,
+.catalog-filter-reset { min-height: 44px; border-radius: 13px; padding: 0 14px; font-size: 0.86rem; }
+.catalog-filter-apply { color: #201437; background: #c1afff; }
+.catalog-filter-apply:hover { background: #d6c8ff; }
+.catalog-filter-reset { color: #ded2f5; border-color: #4a3b60; background: #292039; }
+
+.catalog-filter-trigger:focus-visible,
+.catalog-filter-panel button:focus-visible,
+.catalog-filter-choice input:focus-visible + span,
+.catalog-active-filters button:focus-visible {
+    outline: 2px solid #d0baff;
+    outline-offset: 2px;
+}
+
+.catalog-active-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 7px;
+    width: 100%;
+    max-width: 780px;
+    margin: -18px 0 20px;
+}
+
+.catalog-active-filters[hidden] { display: none; }
+.catalog-filter-chip {
+    min-height: 33px;
+    padding: 3px 10px 3px 12px;
+    border-color: #67528d;
+    border-radius: 99px;
+    background: #2d2242;
+    color: #ebdfff;
+    font-size: 0.78rem;
+}
+.catalog-filter-chip span { font-size: 1.05rem; line-height: 1; color: #c3aef1; }
+.catalog-filter-chip:hover { background: #453260; }
+.catalog-filter-clear-all { min-height: 33px; padding-inline: 5px; background: transparent; color: #c6b3ef; font-size: 0.78rem; }
+.catalog-filter-clear-all:hover { color: #fff; }
+
+@media (max-width: 600px) {
+    .catalog-filter-dialog {
+        --filter-panel-height: min(760px, calc(100vh - 36px));
+        margin: auto 0 0;
+        width: 100%;
+        border-radius: 23px 23px 0 0;
+        border-bottom: 0;
+    }
+    .catalog-filter-dialog[open] { animation-name: catalog-filter-up; }
+    .catalog-filter-actions { padding-bottom: max(14px, env(safe-area-inset-bottom)); }
+    @supports (height: 100dvh) {
+        .catalog-filter-dialog { --filter-panel-height: min(760px, calc(100dvh - 36px)); }
+    }
+}
+
+@keyframes catalog-filter-up {
+    from { opacity: 0; transform: translateY(14px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 380px) {
+    .catalog-filter-header, .catalog-filter-fields, .catalog-filter-actions { padding-inline: 14px; }
+    .catalog-sort-options .catalog-filter-choice__text { gap: 5px; padding-inline: 7px; }
+    .catalog-filter-trigger { min-height: 42px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .catalog-filter-dialog[open] { animation: none; }
+}
+
+.catalog-summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--space-md);
+    width: 100%;
+    max-width: 1200px;
+    margin-bottom: var(--space-lg);
+    color: var(--ag-text-secondary);
+    font-size: 0.85rem;
+}
+.catalog-page-size { color: var(--ag-text-muted); white-space: nowrap; }
+.catalog-grid { min-height: 200px; }
+.catalog-pagination, .catalog-pages { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.catalog-pagination { flex-wrap: wrap; margin-bottom: var(--space-xl); }
+.catalog-pages .catalog-page-btn { min-width: 42px; padding: 8px; }
+.catalog-page-gap { color: var(--ag-text-muted); padding: 0 2px; }
+.catalog-empty {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: var(--space-3xl) var(--space-lg);
+    border: 1px solid var(--ag-glass-border);
+    border-radius: var(--radius-lg);
+    background: var(--ag-glass);
+    color: var(--ag-text-secondary);
+}
+.catalog-empty__title { font: 600 1.3rem var(--font-display); color: var(--ag-text-primary); margin-bottom: 8px; }
+.catalog-empty p { margin-bottom: var(--space-md); }
+.movie-card__year { color: var(--ag-text-muted); font-size: 0.8rem; }
+.catalog-grid .movie-card__poster-placeholder { font-size: 1rem; }
+.catalog-grid .movie-card__meta-row { gap: var(--space-sm); }
+
+@media (max-width: 599px) {
+    .catalog-view .movie-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+    }
+    .catalog-view .movie-card__body { padding: 10px; }
+    .catalog-view .movie-card__title { font-size: 0.8rem; }
+    .catalog-view .genre-pill { font-size: 0.62rem; padding: 3px 6px; }
+    .catalog-view .movie-card__year { font-size: 0.72rem; }
+}
+
+@media (min-width: 600px) and (max-width: 1023px) {
+    .catalog-view .movie-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+    }
+}
+
+@media (max-width: 600px) {
+    .nav__container { padding: 14px 64px 14px 16px; gap: 8px; }
+    .nav__brand { font-size: 1.2rem; gap: 6px; }
+    .nav__links { gap: 14px; }
+    .nav__link { font-size: 0.82rem; white-space: nowrap; }
+    .catalog-view { padding-left: 16px; padding-right: 16px; }
+    .catalog-search { padding-left: 14px; }
+    .catalog-search__submit { padding: 8px 14px; }
+    .catalog-summary { flex-wrap: wrap; gap: 4px; }
+    .catalog-pages { gap: 4px; }
+    .catalog-pagination .catalog-pages { flex-basis: 100%; flex-wrap: wrap; order: -1; }
+    .catalog-pages .catalog-page-btn { min-width: 34px; padding: 6px; }
+    .catalog-pagination { gap: 6px; }
+    .catalog-page-btn { padding: 8px 10px; }
+    .catalog-pagination > .catalog-page-btn span { display: none; }
+}
+
+@media (max-width: 380px) {
+    .nav__brand { font-size: 1rem; }
+    .nav__brand svg { width: 19px; }
+    .nav__links { gap: 8px; }
+    .nav__link { font-size: 0.76rem; }
+    .summary-language { right: 12px; top: 9px; }
+    .summary-language summary { width: 37px; height: 37px; }
+}
+
+@media (max-width: 420px) {
+    .cold-start__header { max-width: calc(100vw - 100px); }
+    .cold-start__header .cold-start__title { font-size: clamp(1.08rem, 5.5vw, 1.25rem); }
+}
+
+@media (max-width: 480px) {
+    .catalog-toolbar { flex-direction: column; align-items: stretch; gap: 8px; }
+    .catalog-filter-trigger { align-self: flex-end; }
+}
+
 .movie-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
     gap: var(--space-lg);
     width: 100%;
     max-width: 1200px;
@@ -744,7 +1454,13 @@ body {
 
 @media (min-width: 768px) {
     .movie-grid {
-        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(215px, 1fr));
+    }
+}
+
+@media (min-width: 1024px) {
+    .movie-grid {
+        grid-template-columns: repeat(5, 1fr);
     }
 }
 
@@ -756,27 +1472,38 @@ body {
     border: 1px solid var(--ag-glass-border);
     backdrop-filter: blur(var(--ag-glass-blur));
     -webkit-backdrop-filter: blur(var(--ag-glass-blur));
-    transition: all var(--ag-transition-smooth);
-    will-change: transform;
+    transition: transform var(--ag-transition-smooth), border-color var(--ag-transition-smooth), box-shadow var(--ag-transition-smooth);
+    /* PERF: will-change sabit olarak 30 kart için tanımlıydı → yüksek bellek.
+       Sadece hover sırasında aktif edilecek şekilde :hover'a taşındı. */
     cursor: default;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
 }
 
 .movie-card:hover {
+    /* PERF: will-change sadece hover'da aktif → bellek tasarrufu */
+    will-change: transform;
     transform: translateY(-8px) scale(1.02);
     border-color: var(--ag-glass-border-hover);
     box-shadow: var(--ag-shadow-float), var(--ag-shadow-glow-purple);
 }
 
+/* GSAP owns entrance transforms; CSS continues to own the idle hover effect. */
+.movie-grid.is-animating .movie-card {
+    transition: none;
+}
+
 .movie-card__poster {
     width: 100%;
-    aspect-ratio: 2 / 3;
+    aspect-ratio: 13 / 18;
     object-fit: cover;
     display: block;
 }
 
 .movie-card__poster-placeholder {
     width: 100%;
-    aspect-ratio: 2 / 3;
+    aspect-ratio: 13 / 18;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -787,6 +1514,9 @@ body {
 
 .movie-card__body {
     padding: var(--space-md);
+    display: flex;
+    flex-direction: column;
+    flex: 1;
 }
 
 .movie-card__title {
@@ -794,7 +1524,7 @@ body {
     font-weight: 600;
     font-size: 0.9rem;
     color: var(--ag-text-primary);
-    margin-bottom: var(--space-xs);
+    margin-bottom: calc(var(--space-xs) * 1.25);
     line-height: 1.3;
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -809,28 +1539,17 @@ body {
     margin-bottom: var(--space-sm);
 }
 
-.movie-card__similarity {
-    display: flex;
-    align-items: center;
-    gap: var(--space-xs);
-    font-size: 0.75rem;
-    color: var(--ag-accent-glow);
+.movie-card__reason {
+    min-width: 0;
+    padding: 3px 7px;
+    border-radius: var(--radius-full);
+    background: rgba(162, 155, 254, 0.13);
+    color: #c9c1ff;
+    font-size: 0.7rem;
     font-weight: 600;
-}
-
-.similarity-bar {
-    flex: 1;
-    height: 3px;
-    border-radius: 2px;
-    background: var(--ag-glass-border);
     overflow: hidden;
-}
-
-.similarity-bar__fill {
-    height: 100%;
-    border-radius: 2px;
-    background: linear-gradient(90deg, var(--ag-accent) 0%, var(--ag-accent-warm) 100%);
-    transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 /* Restart Button */
@@ -875,6 +1594,10 @@ body {
     justify-content: center;
     gap: var(--space-xl);
     flex-wrap: wrap;
+}
+
+.status-item[hidden] {
+    display: none;
 }
 
 .status-item {
@@ -982,7 +1705,7 @@ body {
     align-items: center;
     justify-content: center;
     padding: var(--space-xl) var(--space-md);
-    min-height: 100vh;
+    min-height: calc(var(--vh, 1vh) * 100);
 }
 
 .onboarding__container {
@@ -1016,6 +1739,19 @@ body {
     padding: var(--space-md);
 }
 
+.genre-grid { grid-template-columns: repeat(auto-fit, minmax(126px, 1fr)); }
+.year-card.genre-card { padding: 10px 6px; min-height: 48px; }
+.genre-card .year-card__title { font-size: 0.93rem; }
+.genre-grid input:checked + .genre-card { border-color: var(--ag-accent-glow); background: rgba(124, 111, 247, 0.23); }
+.genre-grid input:focus-visible + .genre-card { outline: 2px solid var(--ag-accent-glow); outline-offset: 2px; }
+.genre-actions { display: flex; justify-content: center; gap: 12px; }
+.genre-status, .recommendation-status { margin: 0 0 12px; color: var(--ag-text-secondary); }
+.genre-status:empty { margin: 0; }
+
+@media (max-width: 480px) {
+    .genre-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding-inline: 0; }
+}
+
 .year-card {
     background: var(--ag-glass);
     border: 1px solid var(--ag-glass-border);
@@ -1040,6 +1776,11 @@ body {
     transition: opacity var(--ag-transition-smooth);
 }
 
+.onboarding.is-animating .year-card {
+    transition: none;
+    will-change: transform, opacity;
+}
+
 .year-card:hover {
     transform: translateY(-5px);
     border-color: rgba(124, 111, 247, 0.4);
@@ -1052,6 +1793,18 @@ body {
 
 .year-card:active {
     transform: translateY(-2px);
+}
+
+.year-card.hide-bg {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+.year-card.hide-bg::before {
+    display: none !important;
 }
 
 .year-card__title {
@@ -1083,13 +1836,13 @@ body {
     align-items: center;
     justify-content: center;
     padding: var(--space-md);
-    opacity: 0;
+    visibility: hidden;
     pointer-events: none;
-    transition: opacity 0.4s var(--ag-transition-smooth);
+    transition: visibility 0.4s;
 }
 
 .hologram-modal:not(.hidden) {
-    opacity: 1;
+    visibility: visible;
     pointer-events: all;
 }
 
@@ -1099,6 +1852,12 @@ body {
     background: rgba(10, 10, 26, 0.4);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
+    opacity: 0;
+    transition: opacity 0.4s var(--ag-transition-smooth);
+}
+
+.hologram-modal:not(.hidden) .hologram-modal__overlay {
+    opacity: 1;
 }
 
 .hologram-modal__content {
@@ -1110,12 +1869,15 @@ body {
     border-radius: var(--radius-lg);
     padding: var(--space-xl);
     box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), 0 0 40px rgba(124, 111, 247, 0.3);
+
+    opacity: 0;
     transform: scale(0.9) translateY(20px);
-    transition: transform 0.4s var(--ag-transition-smooth);
+    transition: transform 0.4s var(--ag-transition-smooth), opacity 0.4s var(--ag-transition-smooth);
     overflow: hidden;
 }
 
 .hologram-modal:not(.hidden) .hologram-modal__content {
+    opacity: 1;
     transform: scale(1) translateY(0);
 }
 
@@ -1123,19 +1885,29 @@ body {
     content: '';
     position: absolute;
     top: 0;
-    left: -100%;
+    left: 0; /* FIX: left değişkeni artık animasyonda değil, transform'da */
     width: 50%;
     height: 100%;
     background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-    transform: skewX(-20deg);
+    /* PERF: Başlangıç transform — animasyon başlamadan önce ekran dışında */
+    transform: skewX(-20deg) translateX(-200%);
     animation: hologram-sweep 4s infinite linear;
     pointer-events: none;
+    /* GPU composite layer'a al */
+    will-change: transform;
+}
+
+.hologram-modal.hidden .hologram-modal__content::before {
+    animation-play-state: paused;
+    will-change: auto;
 }
 
 @keyframes hologram-sweep {
-    0% { left: -100%; }
-    20% { left: 200%; }
-    100% { left: 200%; }
+    /* PERF: left property animate edilmesi layout'u tetikler (pahalı repaint).
+       transform: translateX() compositor thread'de çalışır → ~8x daha hızlı. */
+    0%   { transform: skewX(-20deg) translateX(-200%); }
+    20%  { transform: skewX(-20deg) translateX(500%); }
+    100% { transform: skewX(-20deg) translateX(500%); }
 }
 
 .hologram-modal__close {
@@ -1219,6 +1991,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: flex-end;
+    flex-wrap: wrap;
     gap: var(--space-md);
     margin-bottom: var(--space-lg);
     padding: 0 var(--space-xl);
@@ -1226,6 +1999,24 @@ body {
     margin-left: auto;
     margin-right: auto;
 }
+
+#btn-remix {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid rgba(162, 155, 254, 0.3);
+    color: var(--ag-accent-glow);
+}
+
+.recommendation-reasons {
+    margin-top: var(--space-md);
+    padding-left: 12px;
+    border-left: 2px solid var(--ag-accent-glow);
+    font-size: 0.85rem;
+    color: var(--ag-text-secondary);
+}
+.recommendation-reasons strong { color: var(--ag-text-primary); display: block; margin-bottom: 4px; }
+.recommendation-reasons ul { list-style: none; }
 
 .home-controls__label {
     font-size: 0.9rem;
@@ -1292,6 +2083,23 @@ body {
 
 
 @media (max-width: 768px) {
+    /* Movie Card Mobile Optimizations */
+    .movie-card__meta-row {
+        gap: var(--space-xs);
+        flex-wrap: wrap;
+    }
+
+    .movie-card__similarity {
+        font-size: 0.7rem;
+        min-width: 0;
+        flex: 1;
+    }
+
+    .movie-card__rating {
+        padding: 2px 6px;
+        font-size: 0.75rem;
+    }
+
     /* Modal Optimizations - FIX SCROLL & OVERFLOW */
     .hologram-modal__content {
         max-height: 90vh;
@@ -1316,10 +2124,11 @@ body {
         text-align: center;
     }
     
-    /* Home Grid Optimizations - Fit 2 items instead of 1 */
+    /* Home Grid Optimizations - Switch to single column on very small screens to avoid overlap */
     .movie-grid {
-        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-        gap: var(--space-md);
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: var(--space-lg);
+        justify-content: center;
     }
     
     /* Controls Optimizations */
@@ -1361,13 +2170,130 @@ body {
     .cold-start__subtitle {
         font-size: 0.8rem;
     }
-    
-    /* Cinematic Loader Mobile Scale */
-    .cinematic-loader {
-        transform: scale(0.7);
-    }
-    
-    .loader-title {
-        font-size: 1.1rem;
-    }
+}
+
+/* ==========================================================================
+   MOBİL OPTİMIZASYON & GRACEFUL DEGRADATION
+   iPhone 7 (iOS 12-13, 2GB RAM) ve benzeri cihazlar için
+   ========================================================================== */
+
+/* -----------------------------------------------------------
+   Tüm Mobil Cihazlar (.is-mobile sınıfı JS tarafından eklenir)
+   ----------------------------------------------------------- */
+.is-mobile .card-stack {
+    /* iOS FIX: card-stack yüksekliği --vh ile hesaplanıyor.
+       URL bar gizlendiğinde kart boyutu artık zıplamayacak. */
+    height: calc(var(--vh, 1vh) * 62);
+}
+
+/* iOS'ta grab cursor anlamsız; dokunmatik hissini bozmamak için kaldır */
+.is-mobile .swipe-card {
+    cursor: default;
+}
+.is-mobile .swipe-card:active {
+    cursor: default;
+}
+
+/* Mobilde hover efektleri çalışmaz; will-change beklentisi yok */
+.is-mobile .movie-card:hover {
+    will-change: auto;
+    transform: none;
+    box-shadow: none;
+}
+
+/* -----------------------------------------------------------
+   Düşük Performanslı Cihazlar (.low-end-device JS tarafından eklenir)
+   Hedef: iPhone 7 / iOS ≤ 13 / 2 çekirdek mobil
+   ----------------------------------------------------------- */
+
+/* 1. Ambient Orb'ları tamamen kapatın
+   3 orb = 3 ayrı GPU compositor layer + sürekli RAF.
+   iPhone 7'de tek başına bu çökme nedeni olabilir. */
+.low-end-device .ambient-orb {
+    display: none;
+}
+
+/* Grain texture overlay da compositor yükü; kaldırılıyor */
+.low-end-device .ambient-bg::after {
+    display: none;
+}
+
+/* 2. Nav backdrop-filter fallback
+   iOS 12/13: backdrop-filter GPU'nun bellek limitini aşabiliyor.
+   Yarı opak solid renk aynı görüntüyü sıfır GPU maliyet ile verir. */
+.low-end-device .main-nav {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: rgba(10, 10, 20, 0.97);
+}
+
+/* 3. Modal backdrop-filter fallback */
+.low-end-device .hologram-modal__overlay {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: rgba(0, 0, 0, 0.88);
+}
+
+.low-end-device .hologram-modal__content {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: rgba(10, 10, 22, 0.99);
+}
+
+/* 4. Action buton blur fallback */
+.low-end-device .action-btn {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: rgba(15, 15, 30, 0.95);
+}
+
+/* 5. Kart Flip: preserve-3d Flattening
+   iOS ≤ 13'te nested preserve-3d çoğu zaman "ghost" veya yarı görünür
+   yüz bug'una yol açar. 3D flip yerine opacity crossfade kullanılıyor.
+   Görsel etki:ön yazılır, arka fadeIn ile üstlerine biner. Estetik korunur. */
+.low-end-device .swipe-card__inner {
+    transform-style: flat; /* preserve-3d devre dışı */
+    -webkit-transform-style: flat;
+}
+
+.low-end-device .swipe-card__face {
+    -webkit-backface-visibility: visible;
+    backface-visibility: visible;
+    transition: opacity 0.35s ease, visibility 0.35s ease;
+}
+
+.low-end-device .swipe-card__front-face {
+    -webkit-transform: none;
+    transform: none;
+    opacity: 1;
+    visibility: visible;
+    position: absolute;
+    z-index: 2;
+}
+
+.low-end-device .swipe-card__back-face {
+    transform: none; /* rotateY(180deg) kaldırıldı — 3D yok */
+    -webkit-transform: none;
+    opacity: 0;
+    visibility: hidden;
+    position: absolute;
+    z-index: 1;
+}
+
+/* .is-flipped sınıfı JS tarafınca card'a eklenir */
+.low-end-device .swipe-card.is-flipped .swipe-card__front-face {
+    opacity: 0;
+    visibility: hidden;
+}
+
+.low-end-device .swipe-card.is-flipped .swipe-card__back-face {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* 6. Ambient orb animasyonunu devrede dışı bırak (gösterilseler bile)
+   orbFloat'un translate3d hedefleri bile yavaş cihazlarda yük oluşturur */
+.low-end-device .ambient-orb {
+    animation: none;
+    will-change: auto;
 }
